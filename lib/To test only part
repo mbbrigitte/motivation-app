@@ -1,0 +1,32 @@
+To test only part
+
+, Create a test file
+Create lib/test_screen.dart:
+import 'package:flutter/material.dart';
+import 'screens/treasure_chest_page.dart';
+
+void main() {
+  runApp(MaterialApp(
+    home: TreasureChestPage(),  // Test just this screen
+  ));
+}
+Then run: flutter run -t lib/test_screen.dart
+
+Option 3: Use Flutter DevTools
+While your app is running:
+
+Option 4: Write actual unit/widget tests
+Create test/bow_animation_test.dart:
+dartimport 'package:flutter_test/flutter_test.dart';
+import 'package:your_app_name/widgets/bow_animation.dart';
+
+void main() {
+  testWidgets('Bow animation renders', (WidgetTester tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: BowAnimation()),
+    ));
+    
+    expect(find.byType(BowAnimation), findsOneWidget);
+  });
+}
+Run tests with: flutter test

@@ -1,0 +1,24 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+
+# Android
+android/.gradle/
+android/captures/
+android/local.properties
+android/app/build/
+android/.idea/
+android/gradle/
+android/gradlew
+android/gradlew.bat
+
+# iOS (skip if only Android)
+ios/
+
+# IDE
+.vscode/
+.idea/
+*.iml

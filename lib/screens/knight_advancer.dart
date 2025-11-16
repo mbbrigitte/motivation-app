@@ -1,0 +1,406 @@
+import 'package:flutter/material.dart';
+import '../services/storage_service.dart';
+import 'guard_challenge.dart';
+import 'wishing_well_challenge.dart';
+import 'practice_finished.dart';
+
+class KnightAdvancer extends StatefulWidget {
+  const KnightAdvancer({super.key});
+
+  @override
+  State<KnightAdvancer> createState() => _KnightAdvancerState();
+}
+
+class _KnightAdvancerState extends State<KnightAdvancer>
+    with SingleTickerProviderStateMixin {
+  int points = 0; // Changed from tokensCollected
+  int lastHandledMilestone = 0; // NEW: track the last milestone we handled
+  bool isLoading = true;
+
+  // Animation
+  late AnimationController _animationController;
+  late Animation<double> _positionAnimation;
+
+  // Use percentages instead of absolute pixels
+  double animatedXPercent = 0.558;
+  double animatedYPercent = 0.9999;
+  double animatedSizePercent = 0.308;
+
+  // Knight positions as percentages of screen dimensions
+  final Map<String, Map<String, double>> positions = {
+    '1-3': {'x': 0.56, 'y': 0.9999, 'size': 0.408},
+    '4-6': {'x': 0.321, 'y': 0.968, 'size': 0.329},
+    '7-9': {'x': 0.409, 'y': 0.859, 'size': 0.272},
+    '10-12': {'x': 0.58, 'y': 0.761, 'size': 0.250},
+    '13-15': {'x': 0.56, 'y': 0.728, 'size': 0.235},
+    '16-18': {'x': 0.375, 'y': 0.63, 'size': 0.202},
+    '19-21': {'x': 0.5, 'y': 0.556, 'size': 0.185},
+    '22-24': {'x': 0.4, 'y': 0.53, 'size': 0.176},
+    '25': {'x': 0.48, 'y': 0.45, 'size': 0.164},
+  };
+
+  // Speech bubbles
+  final Map<String, String> speechBubbles = {
+    '1-3': "Great start into this new challenge!",
+    '4-6': "I'm making progress!",
+    '7-9': "I can already see the goal. Keep going!",
+    '10-12': "Halfway there!",
+    '13-15': "I can see something ahead!",
+    '16-18': "Almost there now...",
+    '19-21': "So close!",
+    '22-24': "Just a bit further!",
+    '25': "You have reached your destination! Well done! Are you ready for an extra challenge?",
+  };
+
+  @override
+  void initState() {
+    super.initState();
+
+    _animationController = AnimationController(
+      duration: const Duration(seconds: 4),
+      vsync: this,
+    );
+
+    _positionAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
+
+    _loadAndSetupJourney();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  String _getDestinationImage() {
+    // Show destination based on LAST HANDLED milestone from storage
+    // This ensures we show the correct destination even after crossing a milestone
+    int journey = lastHandledMilestone ~/ 25;
+    
+    switch (journey) {
+      case 0:
+        return 'assets/images/Guard.png';
+      case 1:
+        return 'assets/images/Wishing_well.png';
+      case 2:
+        return 'assets/images/Treasure_chest_with_dragon.png';
+      case 3:
+        return 'assets/images/Instrument_wagon.png';
+      case 4:
+        return 'assets/images/Beethoven_house.png';
+      case 5:
+        return 'assets/images/JS_Bach_on_Bench_paint.png';
+      case 6:
+        return 'assets/images/Younger_house.png';
+      case 7:
+        return 'assets/images/JS_Bach_on_Bench_paint.png';
+      case 8:
+        return 'assets/images/Wishing_well.png';
+      case 9:
+        return 'assets/images/Treasure_chest_with_dragon.png';
+      default:
+        int cycleIndex = journey % 3;
+        if (cycleIndex == 0) return 'assets/images/JS_Bach_on_Bench_paint.png';
+        if (cycleIndex == 1) return 'assets/images/Wishing_well.png';
+        return 'assets/images/Treasure_chest_with_dragon.png';
+    }
+  }
+
+  String _getJourneyTitle() {
+    // Show title based on LAST HANDLED milestone from storage
+    int journey = lastHandledMilestone ~/ 25;
+    
+    switch (journey) {
+      case 0:
+        return 'Journey to the Guard';
+      case 1:
+        return 'The Wishing Well';
+      case 2:
+        return 'Dragon\'s Treasure';
+      case 3:
+        return 'The Instrument Wagon';
+      case 4:
+        return 'Beethoven\'s House';
+      case 5:
+        return 'Bach\'s Bench';
+      case 6:
+        return 'Younger House';
+      default:
+        return 'Epic Journey ${journey + 1}';
+    }
+  }
+
+  Future<void> _loadAndSetupJourney() async {
+    points = await StorageService.loadPoints(); // Load points instead of tokens
+
+    lastHandledMilestone = await StorageService.loadLastHandledMilestone(); // Load this first!
+    int currentMilestone = (points ~/ 25) * 25;
+    
+    // Check if we just crossed a milestone
+    bool justCrossedMilestone = points >= 25 && 
+                                currentMilestone > lastHandledMilestone;
+
+    // Determine display points
+    int displayPoints;
+    if (justCrossedMilestone) {
+      // Just crossed milestone - stop at position 25
+      displayPoints = 25;
+    } else {
+      // Normal journey - show position within current 25-point journey
+      displayPoints = points % 25;
+      if (displayPoints == 0 && points > 0) {
+        displayPoints = 0;
+      }
+    }
+
+    // Load knight's last saved position (starting point for animation)
+    double? savedX = await StorageService.loadAnimatedX();
+    double? savedY = await StorageService.loadAnimatedY();
+    double? savedSize = await StorageService.loadAnimatedSize();
+
+    if (savedX != null && savedY != null && savedSize != null) {
+      // Check if values are absolute (>10) or percentage (<2)
+      if (savedX > 10) {
+        // Old absolute values - convert to percentages
+        animatedXPercent = savedX / 1200;
+        animatedYPercent = savedY / 1200;
+        animatedSizePercent = savedSize / 1200;
+      } else {
+        // Already percentages
+        animatedXPercent = savedX;
+        animatedYPercent = savedY;
+        animatedSizePercent = savedSize;
+      }
+    } else {
+      // No saved position - use default starting position
+      Map<String, double> startPos = _getPositionForPoints(displayPoints);
+      animatedXPercent = startPos['x']!;
+      animatedYPercent = startPos['y']!;
+      animatedSizePercent = startPos['size']!;
+    }
+
+    setState(() {
+      isLoading = false;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // Animate to target position
+    _animateToPosition(displayPoints);
+
+    await Future.delayed(const Duration(seconds: 8));
+
+    if (!mounted) return;
+
+    // Handle milestone crossing
+    if (justCrossedMilestone) {
+      // Save that we've handled this milestone
+      await StorageService.saveLastHandledMilestone(currentMilestone);
+      
+      // Clear knight position so next journey starts fresh
+      await StorageService.clearKnightPosition();
+      
+      if (currentMilestone == 25) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const GuardChallenge()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const WishingWellChallenge()),
+        );
+      }
+      return;
+    }
+
+    // Normal flow - go to practice finished
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const PracticeFinished()),
+    );
+  }
+
+  Map<String, double> _getPositionForPoints(int pts) {
+    if (pts >= 25) return positions['25']!;
+    if (pts >= 22) return positions['22-24']!;
+    if (pts >= 19) return positions['19-21']!;
+    if (pts >= 16) return positions['16-18']!;
+    if (pts >= 13) return positions['13-15']!;
+    if (pts >= 10) return positions['10-12']!;
+    if (pts >= 7) return positions['7-9']!;
+    if (pts >= 4) return positions['4-6']!;
+    if (pts >= 1) return positions['1-3']!;
+    return positions['1-3']!;
+  }
+
+  String? _getSpeechBubbleForPoints(int pts) {
+    if (pts >= 25) return speechBubbles['25'];
+    if (pts >= 22) return speechBubbles['22-24'];
+    if (pts >= 19) return speechBubbles['19-21'];
+    if (pts >= 16) return speechBubbles['16-18'];
+    if (pts >= 13) return speechBubbles['13-15'];
+    if (pts >= 10) return speechBubbles['10-12'];
+    if (pts >= 7) return speechBubbles['7-9'];
+    if (pts >= 4) return speechBubbles['4-6'];
+    if (pts >= 1) return speechBubbles['1-3'];
+    return null;
+  }
+
+  void _animateToPosition(int displayPoints) {
+    Map<String, double> targetPos = _getPositionForPoints(displayPoints);
+
+    double startX = animatedXPercent;
+    double startY = animatedYPercent;
+    double startSize = animatedSizePercent;
+
+    _animationController.reset();
+
+    _animationController.addListener(() async {
+      setState(() {
+        animatedXPercent =
+            startX + (targetPos['x']! - startX) * _positionAnimation.value;
+        animatedYPercent =
+            startY + (targetPos['y']! - startY) * _positionAnimation.value;
+        animatedSizePercent =
+            startSize + (targetPos['size']! - startSize) * _positionAnimation.value;
+      });
+
+      // Save position continuously during animation
+      await StorageService.saveAnimatedX(animatedXPercent);
+      await StorageService.saveAnimatedY(animatedYPercent);
+      await StorageService.saveAnimatedSize(animatedSizePercent);
+    });
+
+    _animationController.forward();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Get screen dimensions
+    final size = MediaQuery.of(context).size;
+    final screenWidth = size.width;
+    final screenHeight = size.height;
+
+    // Convert percentages to actual pixels based on current screen size
+    final knightX = animatedXPercent * screenWidth;
+    final knightY = animatedYPercent * screenHeight;
+    final knightSize = animatedSizePercent * screenWidth;
+
+    // Destination position (also relative)
+    final destX = 0.184 * screenWidth;
+    final destY = 0.18 * screenHeight;
+    final destSize = 0.2 * screenWidth;
+
+    // Calculate display points for speech bubble
+    int displayPoints = points - lastHandledMilestone;
+    if (points % 25 == 0 && points > 0) {
+      displayPoints = 25;
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Background image
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/Empty_landscape.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+
+          // Destination image (Guard, Wishing Well, etc.)
+          Positioned(
+            left: destX,
+            top: destY,
+            child: Image.asset(
+              _getDestinationImage(),
+              width: destSize,
+            ),
+          ),
+
+          // Knight sprite
+          Positioned(
+            left: knightX - (knightSize / 2),
+            top: knightY - knightSize,
+            child: Image.asset(
+              'assets/images/Knight.png',
+              width: knightSize,
+            ),
+          ),
+
+          // Speech bubble
+          if (_animationController.isCompleted &&
+              _getSpeechBubbleForPoints(displayPoints) != null)
+            Positioned(
+              left: knightX + 20,
+              top: knightY - knightSize - 80,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.black, width: 2),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 4,
+                      offset: Offset(2, 2),
+                    ),
+                  ],
+                ),
+                constraints: BoxConstraints(maxWidth: screenWidth * 0.167),
+                child: Text(
+                  _getSpeechBubbleForPoints(displayPoints)!,
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+            ),
+
+          // Centered info overlay - now shows POINTS instead of tokens
+          Positioned(
+            top: 40,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.red[900],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.yellow[600]!, width: 3),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black54,
+                      blurRadius: 8,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  '${_getJourneyTitle()} - Points: $points',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Georgia',
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
