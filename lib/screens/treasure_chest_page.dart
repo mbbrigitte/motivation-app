@@ -12,7 +12,7 @@ class TreasureChestPage extends StatefulWidget {
 
 class _TreasureChestPageState extends State<TreasureChestPage> {
   int _currentTokens = 0;
-  int _currentPoints = 0; // NEW: track points
+  int _currentPoints = 0;
   bool _isLoading = true;
   late VideoPlayerController _videoController;
   bool _isVideoInitialized = false;
@@ -37,29 +37,22 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
     _videoController = VideoPlayerController.asset(
       'assets/videos/Hailuo_treasure_chest_open_closes.mp4',
     );
-    
+
     await _videoController.initialize();
     await _videoController.setLooping(false);
-    
-    // Seek to 0.5 seconds for the still frame
+
     await _videoController.seekTo(const Duration(milliseconds: 500));
     await _videoController.pause();
-    
-    // Add listener to detect when video ends
+
     _videoController.addListener(_videoListener);
-    
-    setState(() {
-      _isVideoInitialized = true;
-    });
+
+    setState(() => _isVideoInitialized = true);
   }
 
   void _videoListener() {
     if (_videoController.value.position >= _videoController.value.duration &&
         _isPlaying) {
-      setState(() {
-        _isPlaying = false;
-      });
-      // Return to still frame at 0.5s
+      setState(() => _isPlaying = false);
       _videoController.seekTo(const Duration(milliseconds: 500));
       _videoController.pause();
     }
@@ -74,48 +67,38 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
 
   Future<void> _loadTokens() async {
     int tokens = await StorageService.loadTokens();
-    int points = await StorageService.loadPoints(); // NEW: load points
+    int points = await StorageService.loadPoints();
     setState(() {
       _currentTokens = tokens;
-      _currentPoints = points; // NEW
+      _currentPoints = points;
       _isLoading = false;
     });
   }
 
   Future<void> _collectTokens(int amount) async {
-    // Play video animation
     if (_isVideoInitialized && !_isPlaying) {
-      setState(() {
-        _isPlaying = true;
-      });
-      
-      // Start from beginning
+      setState(() => _isPlaying = true);
       await _videoController.seekTo(Duration.zero);
       await _videoController.play();
     }
-    
+
     setState(() {
       _currentTokens += amount;
-      _currentPoints += amount; // NEW: points also increase
+      _currentPoints += amount;
     });
-    
-    // Save to storage
+
     await StorageService.saveTokens(_currentTokens);
-    
-    // Update total tokens ever
+
     int totalTokens = await StorageService.loadTotalTokens();
     await StorageService.saveTotalTokens(totalTokens + amount);
-    
-    // NEW: Update points (lifetime achievement)
+
     await StorageService.addPoints(amount);
   }
 
   void _navigateToKnightScreen() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const KnightAdvancer(),
-      ),
+      MaterialPageRoute(builder: (context) => const KnightAdvancer()),
     );
   }
 
@@ -126,6 +109,7 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
       context: context,
       builder: (context) {
         int availableTokens = _currentTokens;
+
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -147,23 +131,18 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
                 ],
               ),
               content: SizedBox(
-                width: 300,
-                height: 180,
+                width: double.maxFinite,
+                height: 200,
                 child: GridView.count(
                   crossAxisCount: 2,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 2.0,
-                  shrinkWrap: true,
+                  childAspectRatio: 2.1,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
                   children: options.map((val) {
                     return ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red[700],
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
                       ),
                       onPressed: availableTokens >= val
                           ? () {
@@ -178,28 +157,23 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
                                     ),
                                     TextButton(
                                       onPressed: () async {
-                                        Navigator.pop(ctx); // close confirmation
-                                        
-                                        // Update tokens - properly decrease the count
-                                        int newTokenCount = _currentTokens - val;
-                                        
-                                        // Update dialog state
+                                        Navigator.pop(ctx);
+
+                                        int newCount =
+                                            _currentTokens - val;
+
                                         setDialogState(() {
-                                          availableTokens = newTokenCount;
+                                          availableTokens = newCount;
                                         });
-                                        
-                                        // Update main page state
+
                                         setState(() {
-                                          _currentTokens = newTokenCount;
-                                          // Points stay the same - they never decrease!
+                                          _currentTokens = newCount;
                                         });
-                                        
-                                        // Save updated tokens
-                                        await StorageService.saveTokens(_currentTokens);
-                                        
-                                        // CRITICAL: Clear knight's saved position
-                                        // so it recalculates on next load
-                                        await StorageService.clearKnightPosition();
+
+                                        await StorageService.saveTokens(
+                                            newCount);
+                                        await StorageService
+                                            .clearKnightPosition();
                                       },
                                       child: const Text('Confirm'),
                                     ),
@@ -208,14 +182,7 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
                               );
                             }
                           : null,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('Redeem $val'),
-                          const SizedBox(width: 5),
-                          Icon(Icons.circle, color: Colors.amber, size: 16),
-                        ],
-                      ),
+                      child: Text('Redeem $val'),
                     );
                   }).toList(),
                 ),
@@ -238,17 +205,19 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.red[700],
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
       onPressed: () => _collectTokens(quest['tokens']),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Flexible(
+          Expanded(
             child: Text(
               quest['name'],
-              overflow: TextOverflow.ellipsis,
+              overflow: TextOverflow.visible,
             ),
           ),
           Container(
@@ -258,8 +227,11 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '+${quest['tokens']} tokens',
-              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              '+${quest['tokens']}',
+              style: const TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -269,6 +241,8 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width > 650;
+
     if (_isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -278,183 +252,225 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
     return Scaffold(
       backgroundColor: Colors.yellow[800],
       appBar: AppBar(
-        title: const Center(
-          child: Text(
-            "⚔️ Knight's Treasure Quest ⚔️",
-            style: TextStyle(fontSize: 26),
-          ),
+        title: const Text(
+          "⚔️ Knight's Treasure Quest ⚔️",
+          style: TextStyle(fontSize: 22),
         ),
+        centerTitle: true,
         backgroundColor: Colors.red[900],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 1,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // NEW: Points display (lifetime achievement)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[700],
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.blue[300]!, width: 2),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.star, color: Colors.amber, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Total Points: $_currentPoints',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  
-                  // Token counter with icon
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.circle, color: Colors.amber, size: 22),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Tokens: $_currentTokens / 250',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  
-                  // Progress bar
-                  Container(
-                    width: double.infinity,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: Colors.brown[800],
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: Colors.orange[900]!, width: 3),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Stack(
-                        children: [
-                          LinearProgressIndicator(
-                            value: _currentTokens / 250,
-                            backgroundColor: Colors.transparent,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.amber[600]!,
-                            ),
-                            minHeight: 30,
-                          ),
-                          Center(
-                            child: Text(
-                              '${((_currentTokens / 250) * 100).toStringAsFixed(0)}%',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                shadows: [
-                                  Shadow(
-                                    blurRadius: 2,
-                                    color: Colors.black,
-                                    offset: Offset(1, 1),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Video treasure chest
-                  Container(
-                    width: 250,
-                    height: 250,
-                    decoration: BoxDecoration(
-                      color: Colors.brown[700],
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.orange[900]!, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(17),
-                      child: _isVideoInitialized
-                          ? AspectRatio(
-                              aspectRatio: _videoController.value.aspectRatio,
-                              child: VideoPlayer(_videoController),
-                            )
-                          : const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _showRedeemDialog,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red[700],
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Redeem Tokens'),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _navigateToKnightScreen,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[700],
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text("View Knight's Journey"),
-                  ),
-                ],
-              ),
+
+      // EVERYTHING SCROLLS NOW
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: isWide
+              ? _buildWideLayout()
+              : _buildStackedLayout(),
+        ),
+      ),
+    );
+  }
+
+  /// 🖥️ Tablet / Web → Side-by-side layout
+  Widget _buildWideLayout() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: _buildLeftColumn()),
+        const SizedBox(width: 24),
+        Expanded(child: _buildRightColumn()),
+      ],
+    );
+  }
+
+  /// 📱 Phone → Stacked vertically
+  Widget _buildStackedLayout() {
+    return Column(
+      children: [
+        _buildLeftColumn(),
+        const SizedBox(height: 20),
+        _buildRightColumn(),
+      ],
+    );
+  }
+
+  /// LEFT SIDE
+  Widget _buildLeftColumn() {
+    return Column(
+      children: [
+        _buildPointsCard(),
+        const SizedBox(height: 12),
+        _buildTokenCounter(),
+        const SizedBox(height: 12),
+        _buildProgressBar(),
+        const SizedBox(height: 20),
+        _buildVideoBox(),
+        const SizedBox(height: 20),
+        _buildButtonsLeft(),
+      ],
+    );
+  }
+
+  /// RIGHT SIDE
+  Widget _buildRightColumn() {
+    return Column(
+      children: _quests
+          .map((quest) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: _buildQuestButton(quest),
+              ))
+          .toList(),
+    );
+  }
+
+  Widget _buildPointsCard() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.blue[700],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.blue[300]!, width: 2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star, color: Colors.amber, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            'Total Points: $_currentPoints',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
             ),
-            const SizedBox(width: 24),
-            Expanded(
-              flex: 1,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Add spacing to align with the token progress bar
-                  const SizedBox(height: 150), // Moved down a bit more
-                  
-                  ..._quests.map((quest) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: _buildQuestButton(quest),
-                  )).toList(),
-                ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTokenCounter() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.circle, color: Colors.amber, size: 22),
+        const SizedBox(width: 8),
+        Text(
+          'Tokens: $_currentTokens / 250',
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProgressBar() {
+    return Container(
+      width: double.infinity,
+      height: 30,
+      decoration: BoxDecoration(
+        color: Colors.brown[800],
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.orange[900]!, width: 3),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          children: [
+            LinearProgressIndicator(
+              value: _currentTokens / 250,
+              backgroundColor: Colors.transparent,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Colors.amber[600]!,
+              ),
+              minHeight: 30,
+            ),
+            Center(
+              child: Text(
+                '${((_currentTokens / 250) * 100).toStringAsFixed(0)}%',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  shadows: [
+                    Shadow(
+                      blurRadius: 2,
+                      color: Colors.black,
+                      offset: Offset(1, 1),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildVideoBox() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        double maxSize = constraints.maxWidth.clamp(160, 350);
+
+        return Container(
+          width: maxSize,
+          height: maxSize,
+          decoration: BoxDecoration(
+            color: Colors.brown[700],
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.orange[900]!, width: 3),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(17),
+            child: _isVideoInitialized
+                ? FittedBox(
+                    fit: BoxFit.contain,
+                    child: SizedBox(
+                      width: _videoController.value.size.width,
+                      height: _videoController.value.size.height,
+                      child: VideoPlayer(_videoController),
+                    ),
+                  )
+                : const Center(child: CircularProgressIndicator()),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildButtonsLeft() {
+    return Column(
+      children: [
+        ElevatedButton(
+          onPressed: _showRedeemDialog,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red[700],
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: const Text('Redeem Tokens'),
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton(
+          onPressed: _navigateToKnightScreen,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green[700],
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: const Text("View Knight's Journey"),
+        ),
+      ],
     );
   }
 }

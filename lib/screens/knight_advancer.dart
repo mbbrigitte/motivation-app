@@ -23,20 +23,21 @@ class _KnightAdvancerState extends State<KnightAdvancer>
 
   // Use percentages instead of absolute pixels
   double animatedXPercent = 0.558;
-  double animatedYPercent = 0.9999;
-  double animatedSizePercent = 0.308;
+  double animatedYPercent = 0.998;
+  double animatedSizePercent = 0.45; // Increased for better visibility
 
   // Knight positions as percentages of screen dimensions
+  // Size values increased for better visibility on small screens
   final Map<String, Map<String, double>> positions = {
-    '1-3': {'x': 0.56, 'y': 0.9999, 'size': 0.408},
-    '4-6': {'x': 0.321, 'y': 0.968, 'size': 0.329},
-    '7-9': {'x': 0.409, 'y': 0.859, 'size': 0.272},
-    '10-12': {'x': 0.58, 'y': 0.761, 'size': 0.250},
-    '13-15': {'x': 0.56, 'y': 0.728, 'size': 0.235},
-    '16-18': {'x': 0.375, 'y': 0.63, 'size': 0.202},
-    '19-21': {'x': 0.5, 'y': 0.556, 'size': 0.185},
-    '22-24': {'x': 0.4, 'y': 0.53, 'size': 0.176},
-    '25': {'x': 0.48, 'y': 0.45, 'size': 0.164},
+    '1-3': {'x': 0.458, 'y': 0.998, 'size': 0.5},
+    '4-6': {'x': 0.321, 'y': 0.908, 'size': 0.42},
+    '7-9': {'x': 0.409, 'y': 0.739, 'size': 0.35},
+    '10-12': {'x': 0.390, 'y': 0.710, 'size': 0.32},
+    '13-15': {'x': 0.376, 'y': 0.691, 'size': 0.30},
+    '16-18': {'x': 0.350, 'y': 0.645, 'size': 0.27},
+    '19-21': {'x': 0.389, 'y': 0.580, 'size': 0.25},
+    '22-24': {'x': 0.368, 'y': 0.576, 'size': 0.23},
+    '25': {'x': 0.347, 'y': 0.508, 'size': 0.22},
   };
 
   // Speech bubbles
@@ -107,6 +108,12 @@ class _KnightAdvancerState extends State<KnightAdvancer>
         if (cycleIndex == 1) return 'assets/images/Wishing_well.png';
         return 'assets/images/Treasure_chest_with_dragon.png';
     }
+  }
+
+  String _getBackgroundImage() {
+    // Alternates between day and night based on milestone
+    int journey = lastHandledMilestone ~/ 25;
+    return journey % 2 == 0 ? 'assets/images/day.png' : 'assets/images/night.png';
   }
 
   String _getJourneyTitle() {
@@ -296,10 +303,10 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     final knightY = animatedYPercent * screenHeight;
     final knightSize = animatedSizePercent * screenWidth;
 
-    // Destination position (also relative)
+    // Destination position (also relative) - increased size
     final destX = 0.184 * screenWidth;
-    final destY = 0.18 * screenHeight;
-    final destSize = 0.2 * screenWidth;
+    final destY = 0.27 * screenHeight;
+    final destSize = 0.28 * screenWidth; // Increased for visibility
 
     // Calculate display points for speech bubble
     int displayPoints = points - lastHandledMilestone;
@@ -311,10 +318,10 @@ class _KnightAdvancerState extends State<KnightAdvancer>
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Background image
+          // Background image - alternates between day and night
           Positioned.fill(
             child: Image.asset(
-              'assets/images/Empty_landscape.png',
+              _getBackgroundImage(),
               fit: BoxFit.cover,
             ),
           ),
@@ -339,14 +346,14 @@ class _KnightAdvancerState extends State<KnightAdvancer>
             ),
           ),
 
-          // Speech bubble
+          // Speech bubble - made responsive
           if (_animationController.isCompleted &&
               _getSpeechBubbleForPoints(displayPoints) != null)
             Positioned(
-              left: knightX + 20,
-              top: knightY - knightSize - 80,
+              left: knightX + (screenWidth * 0.02),
+              top: knightY - knightSize - (screenHeight * 0.08),
               child: Container(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(screenWidth * 0.03),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -359,22 +366,25 @@ class _KnightAdvancerState extends State<KnightAdvancer>
                     ),
                   ],
                 ),
-                constraints: BoxConstraints(maxWidth: screenWidth * 0.167),
+                constraints: BoxConstraints(maxWidth: screenWidth * 0.4),
                 child: Text(
                   _getSpeechBubbleForPoints(displayPoints)!,
-                  style: const TextStyle(fontSize: 14),
+                  style: TextStyle(fontSize: screenWidth * 0.035),
                 ),
               ),
             ),
 
-          // Centered info overlay - now shows POINTS instead of tokens
+          // Centered info overlay - made responsive
           Positioned(
-            top: 40,
+            top: screenHeight * 0.05,
             left: 0,
             right: 0,
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: EdgeInsets.symmetric(
+                  horizontal: screenWidth * 0.04,
+                  vertical: screenHeight * 0.015,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.red[900],
                   borderRadius: BorderRadius.circular(12),
@@ -389,9 +399,9 @@ class _KnightAdvancerState extends State<KnightAdvancer>
                 ),
                 child: Text(
                   '${_getJourneyTitle()} - Points: $points',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: screenWidth * 0.045,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Georgia',
                   ),

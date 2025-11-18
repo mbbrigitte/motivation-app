@@ -47,7 +47,7 @@ class ViolinTuner extends StatelessWidget {
               
               // Placeholder text
               const Text(
-                'Tuning features coming soon!',
+                'Tuning feature is coming soon! Stay tuned!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,

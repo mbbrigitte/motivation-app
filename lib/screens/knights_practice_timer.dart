@@ -64,12 +64,15 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
+        final size = MediaQuery.of(context).size;
+        final double w = size.width;
+        
         return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
           child: Container(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(w * 0.06),
             decoration: BoxDecoration(
               color: const Color(0xFFDAA520),
               borderRadius: BorderRadius.circular(20),
@@ -78,26 +81,33 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Treasure chest image
+                // Treasure chest image - FIXED PATH
                 Image.asset(
-                  'images/treasure_chest.png',
-                  width: 200,
-                  height: 200,
+                  'assets/images/treasure_chest.png', // Changed from 'images/' to 'assets/images/'
+                  width: w * 0.5,
+                  height: w * 0.5,
                   fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    // Fallback if image doesn't load
+                    return Text(
+                      '💰',
+                      style: TextStyle(fontSize: w * 0.3),
+                    );
+                  },
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: w * 0.05),
                 
                 // Text
-                const Text(
+                Text(
                   'Collect treasures!',
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: w * 0.07,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFB22222),
+                    color: const Color(0xFFB22222),
                     fontFamily: 'Georgia',
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: w * 0.06),
                 
                 // Button
                 ElevatedButton(
@@ -113,18 +123,18 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFB22222),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 32,
+                    padding: EdgeInsets.symmetric(
+                      vertical: w * 0.04,
+                      horizontal: w * 0.08,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Go to Treasure Chest',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: w * 0.045,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -156,37 +166,44 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final double w = size.width;
+    final double h = size.height;
+    
     return Scaffold(
       backgroundColor: const Color(0xFFDAA520),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // Title
+              // Title - Made responsive and smaller
               Padding(
-                padding: const EdgeInsets.only(top: 32, bottom: 32),
+                padding: EdgeInsets.only(top: h * 0.04, bottom: h * 0.04),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SwordIcon(size: 60),
-                    SizedBox(width: 20),
-                    Text(
-                      'Knight\'s Practice',
-                      style: TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFB22222),
+                    SwordIcon(size: w * 0.08),
+                    SizedBox(width: w * 0.03),
+                    Flexible(
+                      child: Text(
+                        'Knight\'s Practice',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: w * 0.07, // Reduced from 0.1
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFFB22222),
+                        ),
                       ),
                     ),
-                    SizedBox(width: 20),
-                    SwordIcon(size: 60),
+                    SizedBox(width: w * 0.03),
+                    SwordIcon(size: w * 0.08),
                   ],
                 ),
               ),
 
-              // 🎻 Violin + Bow Stack
+              // 🎻 Violin + Bow Stack - Responsive
               SizedBox(
-                height: 240,
+                height: h * 0.25,
                 child: Stack(
                   clipBehavior: Clip.none,
                   alignment: Alignment.center,
@@ -196,8 +213,8 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                       angle: -0.51,
                       child: Image.asset(
                         'assets/images/violin.png',
-                        width: 250,
-                        height: 460,
+                        width: w * 0.6,
+                        height: h * 0.5,
                         fit: BoxFit.contain,
                       ),
                     ),
@@ -205,7 +222,7 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                     // Bow (on top) - FLIPPED
                     if (_isRunning)
                       Positioned(
-                        top: 10,
+                        top: h * 0.01,
                         child: Transform.rotate(
                           angle: -15,
                           child: Transform.flip(
@@ -218,24 +235,27 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                 ),
               ),
 
-              // 🏆 Tokens
+              // 🏆 Tokens - Responsive
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
+                padding: EdgeInsets.symmetric(vertical: h * 0.025),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildToken(_token1Full),
-                    const SizedBox(width: 20),
-                    _buildToken(_token2Full),
-                    const SizedBox(width: 20),
-                    _buildToken(_token3Full),
+                    _buildToken(_token1Full, w),
+                    SizedBox(width: w * 0.05),
+                    _buildToken(_token2Full, w),
+                    SizedBox(width: w * 0.05),
+                    _buildToken(_token3Full, w),
                   ],
                 ),
               ),
 
-              // Timer Display
+              // Timer Display - Responsive
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                padding: EdgeInsets.symmetric(
+                  horizontal: w * 0.1,
+                  vertical: h * 0.02,
+                ),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
@@ -251,31 +271,31 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                     ],
                   ),
                   borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: Color(0xFF707070), width: 2),
+                  border: Border.all(color: const Color(0xFF707070), width: 2),
                 ),
                 child: Text(
                   _formatTime(),
-                  style: const TextStyle(
-                    fontSize: 48,
-                    color: Color(0xFF2a2a2a),
+                  style: TextStyle(
+                    fontSize: w * 0.12,
+                    color: const Color(0xFF2a2a2a),
                   ),
                 ),
               ),
 
               Padding(
-                padding: const EdgeInsets.only(top: 8),
+                padding: EdgeInsets.only(top: h * 0.01),
                 child: Text(
                   _formatMinutes(),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    color: Color(0xFF8B0000),
+                  style: TextStyle(
+                    fontSize: w * 0.05,
+                    color: const Color(0xFF8B0000),
                   ),
                 ),
               ),
 
-              // ▶ / ⏸ Button and Reset Button
+              // ▶ / ⏸ Button and Reset Button - Responsive
               Padding(
-                padding: const EdgeInsets.only(top: 32),
+                padding: EdgeInsets.only(top: h * 0.04),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -284,8 +304,10 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFF8C00),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 16),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: w * 0.08,
+                          vertical: h * 0.02,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(50),
                           side: const BorderSide(
@@ -297,26 +319,28 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(_isRunning ? '⏸' : '▶',
-                              style: const TextStyle(fontSize: 20)),
-                          const SizedBox(width: 8),
+                              style: TextStyle(fontSize: w * 0.05)),
+                          SizedBox(width: w * 0.02),
                           Text(
                             _isRunning ? 'Pause' : 'Start',
-                            style: const TextStyle(
-                              fontSize: 20,
+                            style: TextStyle(
+                              fontSize: w * 0.05,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    SizedBox(width: w * 0.04),
                     ElevatedButton(
                       onPressed: _reset,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFB22222),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 16),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: w * 0.08,
+                          vertical: h * 0.02,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(50),
                           side: const BorderSide(
@@ -326,13 +350,13 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Text('↺', style: TextStyle(fontSize: 20)),
-                          SizedBox(width: 8),
+                        children: [
+                          Text('↺', style: TextStyle(fontSize: w * 0.05)),
+                          SizedBox(width: w * 0.02),
                           Text(
                             'Reset',
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: w * 0.05,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -343,16 +367,18 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                 ),
               ),
 
-              // Stop - Finished button
+              // Stop - Finished button - Responsive
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32),
+                padding: EdgeInsets.symmetric(vertical: h * 0.04),
                 child: ElevatedButton(
                   onPressed: _showFinishedDialog,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF8B0000),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 40, vertical: 16),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: w * 0.1,
+                      vertical: h * 0.02,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(50),
                       side: const BorderSide(
@@ -360,10 +386,10 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                     ),
                     elevation: 6,
                   ),
-                  child: const Text(
+                  child: Text(
                     'Stop - Finished',
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: w * 0.05,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -376,13 +402,13 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
     );
   }
 
-  Widget _buildToken(bool isFull) {
+  Widget _buildToken(bool isFull, double w) {
     return Opacity(
       opacity: isFull ? 1.0 : 0.3,
       child: Text(
         '🏆',
         style: TextStyle(
-          fontSize: 40,
+          fontSize: w * 0.1,
           shadows: isFull
               ? [
                   Shadow(
