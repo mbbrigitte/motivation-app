@@ -35,7 +35,7 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
 
   Future<void> _initializeVideo() async {
     _videoController = VideoPlayerController.asset(
-      'assets/videos/Hailuo_treasure_chest_open_closes.mp4',
+      'assets/videos/dragon_on_chest.mp4',
     );
 
     await _videoController.initialize();
@@ -288,9 +288,9 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
   Widget _buildStackedLayout() {
     return Column(
       children: [
-        _buildLeftColumn(),
-        const SizedBox(height: 20),
         _buildRightColumn(),
+        const SizedBox(height: 20),
+        _buildLeftColumn(),
       ],
     );
   }
@@ -299,7 +299,6 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
   Widget _buildLeftColumn() {
     return Column(
       children: [
-        _buildPointsCard(),
         const SizedBox(height: 12),
         _buildTokenCounter(),
         const SizedBox(height: 12),
@@ -324,48 +323,33 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
     );
   }
 
-  Widget _buildPointsCard() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.blue[700],
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.blue[300]!, width: 2),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.star, color: Colors.amber, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            'Total Points: $_currentPoints',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTokenCounter() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.circle, color: Colors.amber, size: 22),
-        const SizedBox(width: 8),
-        Text(
-          'Tokens: $_currentTokens / 250',
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+ Widget _buildTokenCounter() {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      // Tokens
+      Icon(Icons.circle, color: Colors.amber, size: 22),
+      const SizedBox(width: 8),
+      Text(
+        'Tokens: $_currentTokens / 250   |  ',
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
         ),
-      ],
-    );
-  }
+      ),
+      // Achievements with little icon
+      Icon(Icons.local_florist, color: Colors.green, size: 20),
+      const SizedBox(width: 4),
+      Text(
+        'Achievements: $_currentPoints',
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ],
+  );
+}
 
   Widget _buildProgressBar() {
     return Container(
@@ -416,61 +400,60 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
       builder: (context, constraints) {
         double maxSize = constraints.maxWidth.clamp(160, 350);
 
-        return Container(
+        return SizedBox(
           width: maxSize,
           height: maxSize,
-          decoration: BoxDecoration(
-            color: Colors.brown[700],
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.orange[900]!, width: 3),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(17),
             child: _isVideoInitialized
                 ? FittedBox(
                     fit: BoxFit.contain,
                     child: SizedBox(
                       width: _videoController.value.size.width,
                       height: _videoController.value.size.height,
-                      child: VideoPlayer(_videoController),
+                      child: Container(
+                        color: Colors.transparent, // <-- Set the background color here
+                        child: VideoPlayer(_videoController),
+                      ),
                     ),
                   )
                 : const Center(child: CircularProgressIndicator()),
-          ),
         );
       },
     );
   }
 
-  Widget _buildButtonsLeft() {
-    return Column(
-      children: [
-        ElevatedButton(
+ Widget _buildButtonsLeft() {
+  return Row(
+    children: [
+      Expanded(
+        child: ElevatedButton(
           onPressed: _showRedeemDialog,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.red[700],
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+            padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
           ),
           child: const Text('Redeem Tokens'),
         ),
-        const SizedBox(height: 12),
-        ElevatedButton(
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: ElevatedButton(
           onPressed: _navigateToKnightScreen,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.green[700],
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+            padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
           ),
           child: const Text("View Knight's Journey"),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 }

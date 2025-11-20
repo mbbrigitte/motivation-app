@@ -29,9 +29,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
   }
 
   Future<void> _initializeEntrance() async {
-    // Initialize the longer video
-    _videoController =
-        VideoPlayerController.asset('assets/videos/Knight_just_talks.mp4');
+    _videoController = VideoPlayerController.asset('assets/videos/Knight_just_talks.mp4');
     await _videoController.initialize();
     await _videoController.setLooping(false);
 
@@ -41,25 +39,25 @@ class _EntranceScreenState extends State<EntranceScreen> {
   }
 
   void _startSequence() async {
-    // Start video from beginning
+    if (!_videoController.value.isInitialized) return;
+
+    // Play video from start
     await _videoController.seekTo(Duration.zero);
     await _videoController.play();
+    setState(() {}); // force rebuild to update first frame
 
-    print('Video playing: ${_videoController.value.isPlaying}');
-    print('Video position: ${_videoController.value.position}');
-
-    // Start violin at 2 seconds (skip empty beginning)
+    // Start violin audio
     await _violinPlayer.play(AssetSource('audio/intro1.mp3'));
     await _violinPlayer.seek(const Duration(seconds: 2));
     await _violinPlayer.setVolume(1.0);
 
-    // At 6 seconds: play knight audio and fade violin
+    // Play knight audio after 7 seconds and fade violin
     _knightTimer = Timer(const Duration(seconds: 7), () async {
       await _knightPlayer.play(AssetSource('audio/Audio_knight.m4a'));
       _startViolinFade();
     });
 
-    // At 18 seconds: navigate to quest selection screen
+    // Navigate to quest selection after 18 seconds
     _endTimer = Timer(const Duration(seconds: 18), () {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const QuestSelectionScreen()),
@@ -68,8 +66,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
   }
 
   void _startViolinFade() {
-    // Fade from volume 1.0 to 0.0 over 9 seconds
-    const fadeSteps = 90; // 90 steps over 9 seconds = 100ms per step
+    const fadeSteps = 90; // 100ms per step
     const fadeDuration = Duration(milliseconds: 100);
     int currentStep = 0;
 
@@ -113,11 +110,19 @@ class _EntranceScreenState extends State<EntranceScreen> {
       backgroundColor: const Color(0xFFDAA520),
       body: Stack(
         children: [
+          // Video background
           Center(
-            child: AspectRatio(
-              aspectRatio: _videoController.value.aspectRatio,
-              child: VideoPlayer(_videoController),
-            ),
+            child: _videoController.value.isInitialized
+                ? AnimatedBuilder(
+                    animation: _videoController,
+                    builder: (context, child) {
+                      return AspectRatio(
+                        aspectRatio: _videoController.value.aspectRatio,
+                        child: VideoPlayer(_videoController),
+                      );
+                    },
+                  )
+                : const CircularProgressIndicator(),
           ),
           // Skip button
           Positioned(
@@ -134,8 +139,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF8B0000),
                 foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(25),
                 ),
@@ -172,8 +176,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFB22222),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 50, vertical: 25),
+                    padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 25),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(50),
                     ),
