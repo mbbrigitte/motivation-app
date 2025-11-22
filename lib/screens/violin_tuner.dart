@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:math';
 import 'knights_practice_timer.dart';
@@ -12,6 +13,9 @@ class ViolinTuner extends StatefulWidget {
 
 class _ViolinTunerState extends State<ViolinTuner>
     with TickerProviderStateMixin {
+  // METHOD CHANNEL - connects to native code
+  static const platform = MethodChannel('com.flutter_testapplication.tuner/audio');
+  
   static const Map<String, double> violinStrings = {
     'G': 196.00,
     'D': 293.66,
@@ -43,10 +47,47 @@ class _ViolinTunerState extends State<ViolinTuner>
       vsync: this,
     );
 
-    _startSimulation();
+    _startAudio();
   }
 
-  void _startSimulation() {
+  // START NATIVE AUDIO PROCESSING
+  Future<void> _startAudio() async {
+    try {
+      // Start listening on native side
+      await platform.invokeMethod('startListening');
+      print('✅ Native audio started successfully');
+      
+      // Poll for pitch data
+      pitchTimer = Timer.periodic(const Duration(milliseconds: 50), (_) async {
+        try {
+          final result = await platform.invokeMethod('getPitch');
+          
+          if (result != null) {
+            double pitch = result['pitch'] ?? 0.0;
+            double amplitude = result['amplitude'] ?? 0.0;
+            
+            setState(() {
+              currentAmplitude = amplitude;
+              
+              if (amplitude > 0.005) { // Only process if loud enough
+                currentPitch = _smoothPitch(pitch);
+                _updateTuningState();
+              }
+            });
+          }
+        } catch (e) {
+          print('Error getting pitch: $e');
+        }
+      });
+    } catch (e) {
+      print('❌ Error starting native audio: $e');
+      print('Falling back to simulation mode');
+      _startSimulationFallback();
+    }
+  }
+
+  // FALLBACK: Simulation mode (if native code fails)
+  void _startSimulationFallback() {
     pitchTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
       setState(() {
         simulatedPitch += (random.nextDouble() - 0.5) * 10;
@@ -62,7 +103,6 @@ class _ViolinTunerState extends State<ViolinTuner>
         }
 
         currentAmplitude = 0.05 + random.nextDouble() * 0.02;
-
         currentPitch = _smoothPitch(simulatedPitch);
         _updateTuningState();
       });
@@ -135,6 +175,11 @@ class _ViolinTunerState extends State<ViolinTuner>
   void dispose() {
     pitchTimer?.cancel();
     needleController.dispose();
+    try {
+      platform.invokeMethod('stopListening');
+    } catch (e) {
+      print('Error stopping audio: $e');
+    }
     super.dispose();
   }
 
@@ -184,20 +229,16 @@ class _ViolinTunerState extends State<ViolinTuner>
 
                 const SizedBox(height: 40),
 
-                // --- START: NEEDLE GAUGE SCALING FIX ---
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    // Calculate a responsive size, e.g., 70% of the screen width
-                    // Using constraints.maxWidth for gauge size relative to parent padding
                     final double gaugeSize = constraints.maxWidth * 0.3; 
                     return SizedBox(
                       width: gaugeSize,
                       height: gaugeSize,
-                      child: _buildNeedleGauge(gaugeSize), // Pass size to the function
+                      child: _buildNeedleGauge(gaugeSize),
                     );
                   },
                 ),
-                // --- END: NEEDLE GAUGE SCALING FIX ---
 
                 const SizedBox(height: 50),
 
@@ -205,23 +246,16 @@ class _ViolinTunerState extends State<ViolinTuner>
 
                 const SizedBox(height: 40),
 
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: _getTuningStatusColor(),
-                    borderRadius: BorderRadius.circular(15),
-                    border:
-                        Border.all(color: const Color(0xFF8B4513), width: 2),
+                // In Tune Indicator
+                if (isInTune)
+                  Text(
+                    'In tune!',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF228B22),
+                    ),
                   ),
-                  child: Text(
-                    _getTuningStatusText(),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
 
                 const SizedBox(height: 40),
 
@@ -277,15 +311,10 @@ class _ViolinTunerState extends State<ViolinTuner>
     );
   }
 
-  // ----------------------------------------------------------
   // NEEDLE GAUGE (RESPONSIVE)
-  // ----------------------------------------------------------
-
-  // Function now accepts a size parameter for responsiveness
   Widget _buildNeedleGauge(double size) {
-    // Calculate relative dimensions based on the passed size
-    final double centerPinSize = size * 0.07; // e.g., 7% of gauge size
-    final double needleThickness = size * 0.018; // e.g., 1.8% of gauge size
+    final double centerPinSize = size * 0.07;
+    final double needleThickness = size * 0.018;
 
     return Stack(
       alignment: Alignment.center,
@@ -294,21 +323,21 @@ class _ViolinTunerState extends State<ViolinTuner>
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: Colors.brown[800],
+            color: const Color(0xFFFFD580),
             shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFF8B4513), width: size * 0.018), // Responsive border width
+            border: Border.all(color: const Color(0xFF8B4513), width: size * 0.018),
           ),
           child: CustomPaint(
             painter: GaugePainter(),
           ),
         ),
 
-        // Line marking the correct pitch (center/0 point)
+        // Center reference line (amber)
         Transform.rotate(
           angle: 0,
           child: Container(
-            width: needleThickness, // Responsive width
-            height: size * 0.45, // Responsive height (slightly less than half)
+            width: needleThickness,
+            height: size * 0.45,
             decoration: BoxDecoration(
               color: Colors.amber,
               borderRadius: BorderRadius.circular(1),
@@ -316,15 +345,15 @@ class _ViolinTunerState extends State<ViolinTuner>
           ),
         ),
 
-        // Needle (Rotates)
+        // Rotating needle
         AnimatedBuilder(
           animation: needleController,
           builder: (context, child) {
             return Transform.rotate(
               angle: (needleController.value - 0.5) * pi,
               child: Container(
-                width: needleThickness * 1.3, // Slightly thicker
-                height: size * 0.45, // Responsive height
+                width: needleThickness * 1.3,
+                height: size * 0.45,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(2),
@@ -334,7 +363,7 @@ class _ViolinTunerState extends State<ViolinTuner>
           },
         ),
 
-        // Center Pin
+        // Center pin
         Container(
           width: centerPinSize,
           height: centerPinSize,
@@ -348,75 +377,62 @@ class _ViolinTunerState extends State<ViolinTuner>
     );
   }
 
-  // ----------------------------------------------------------
-  // DRAGON + CROWN INDICATOR (RESPONSIVE)
-  // ----------------------------------------------------------
-
+  // DRAGON INDICATOR
   Widget _buildDragonIndicator() {
-  double normalized = (detuneAmount + 50) / 100;
-  double verticalDrop = isInTune ? 10 : 0;
+    double normalized = (detuneAmount + 50) / 100;
+    double verticalDrop = isInTune ? 10 : 0;
 
-   return LayoutBuilder(
-    builder: (context, constraints) {
-      final double maxWidth = constraints.maxWidth;
-      final double dragonHeight = maxWidth * 0.5;      // ratio to avoid overflow
-      final double crownSize = maxWidth * 0.15; // Responsive crown size (15% of max width)
-      
-      // Calculate crown X position: (padding) + (normalized position) * (available width - total crown width/padding)
-      final double crownX = 20 + normalized * (maxWidth - 40 - crownSize);
-      
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double maxWidth = constraints.maxWidth;
+        final double dragonHeight = maxWidth * 0.5;
+        final double crownSize = maxWidth * 0.15;
+        final double crownX = 20 + normalized * (maxWidth - 40 - crownSize);
 
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: maxWidth,
-            height: dragonHeight,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned.fill(
-                  child: ClipRect(
-                    child: Align(
-                      alignment: Alignment.center,
-                      heightFactor: 0.55,
-                      child: Image.asset(
-                        "assets/images/Gemini_dragon_tuned.png",
-                        width: maxWidth,
-                        fit: BoxFit.cover,
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: maxWidth,
+              height: dragonHeight,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned.fill(
+                    child: ClipRect(
+                      child: Align(
+                        alignment: Alignment.center,
+                        heightFactor: 0.55,
+                        child: Image.asset(
+                          "assets/images/Gemini_dragon_tuned.png",
+                          width: maxWidth,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   ),
-                ),
 
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 150),
-                  curve: Curves.easeOut,
-                  top: verticalDrop - 50,
-                  left: crownX,
-                  child: Image.asset(
-                    "assets/images/crown_transparent.png",
-                    width: crownSize, // Responsive crown width
-                    height: crownSize, // Responsive crown height
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 150),
+                    curve: Curves.easeOut,
+                    top: verticalDrop - 50,
+                    left: crownX,
+                    child: Image.asset(
+                      "assets/images/crown_transparent.png",
+                      width: crownSize,
+                      height: crownSize,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          ],
+        );
+      },
+    );
+  }
 
-          const SizedBox(height: 6),
-
-         
-        ],
-      );
-    },
-  );
-}
-
-  // ----------------------------------------------------------
   // STATUS DISPLAY
-  // ----------------------------------------------------------
-
   Color _getTuningStatusColor() {
     if (isInTune) return const Color(0xFF228B22);
     if (isTooHigh) return const Color.fromARGB(255, 218, 190, 32);
@@ -433,10 +449,7 @@ class _ViolinTunerState extends State<ViolinTuner>
     return '';
   }
 
-  // ----------------------------------------------------------
   // DEMO CONTROLS
-  // ----------------------------------------------------------
-
   Widget _buildDemoControls() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -482,19 +495,16 @@ class _ViolinTunerState extends State<ViolinTuner>
   }
 }
 
-// --------------------------------------------------------------
 // GAUGE PAINTER (RESPONSIVE)
-// --------------------------------------------------------------
-
 class GaugePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.01; // Responsive stroke width
+      ..strokeWidth = size.width * 0.01;
 
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - (size.width * 0.05); // Responsive padding
+    final radius = size.width / 2 - (size.width * 0.05);
 
     paint.color = Colors.blue;
     canvas.drawArc(
@@ -523,17 +533,16 @@ class GaugePainter extends CustomPainter {
       paint,
     );
 
-    // Draw solid line at correct pitch (top center)
     final linePaint = Paint()
       ..color = Colors.amber
-      ..strokeWidth = size.width * 0.01; // Responsive line width
+      ..strokeWidth = size.width * 0.01;
     canvas.drawLine(
       Offset(center.dx, center.dy - radius),
-      Offset(center.dx, center.dy - radius + (size.width * 0.05)), // Responsive line length
+      Offset(center.dx, center.dy - radius + (size.width * 0.05)),
       linePaint,
     );
 
-    final double fontSize = size.width * 0.05; // Responsive font size
+    final double fontSize = size.width * 0.05;
     final textStyle = TextStyle(fontSize: fontSize, color: Colors.white);
 
     TextPainter(
@@ -541,7 +550,6 @@ class GaugePainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )
       ..layout()
-      // Responsive position: adjusted to be outside the arc
       ..paint(canvas, Offset(center.dx - (size.width * 0.3), center.dy - (size.height * 0.3)));
 
     TextPainter(
@@ -549,7 +557,6 @@ class GaugePainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )
       ..layout()
-      // Responsive position: adjusted to be outside the arc
       ..paint(canvas, Offset(center.dx + (size.width * 0.15), center.dy - (size.height * 0.3)));
   }
 
