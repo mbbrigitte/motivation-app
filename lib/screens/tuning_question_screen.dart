@@ -20,28 +20,31 @@ class TuningQuestionScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Violin emoji
-                Text(
-                  '🎻',
-                  style: TextStyle(fontSize: w * 0.35),
-                ),
-                
-                SizedBox(height: h * 0.05),
-                
-                // Simple question
-                Text(
-                  'Need help tuning?',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: w * 0.08,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFFB22222),
+                // --- Custom Image/Fallback Section ---
+                Container(
+                  constraints: BoxConstraints.loose(Size(w * 0.7, h * 0.4)), // Limits max size
+                  child: Image.asset(
+                    'assets/images/help_tuning.png', // Your Image Path
+                    fit: BoxFit.contain,
+                    // Fallback Option (errorBuilder)
+                    errorBuilder: (context, error, stackTrace) {
+                      // Fallback Text if image fails to load
+                      return Text(
+                        'Do you need help tuning?',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: w * 0.07,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFFB22222),
+                        ),
+                      );
+                    },
                   ),
                 ),
-                
-                SizedBox(height: h * 0.08),
-                
-                // YES button
+
+                SizedBox(height: h * 0.05), // Adjusted spacing
+
+                // YES button (Logic remains unchanged)
                 SizedBox(
                   width: w * 0.7,
                   child: ElevatedButton(
@@ -71,10 +74,10 @@ class TuningQuestionScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                
+
                 SizedBox(height: h * 0.025),
-                
-                // NO button
+
+                // NO button (Logic remains unchanged)
                 SizedBox(
                   width: w * 0.7,
                   child: ElevatedButton(

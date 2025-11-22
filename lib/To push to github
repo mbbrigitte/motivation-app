@@ -1,0 +1,10 @@
+To push to github
+
+and make an apk file there for android download and test
+
+Just push, your yaml file should take care of it
+
+
+Delete this file in your project:
+
+pubspec.lock
