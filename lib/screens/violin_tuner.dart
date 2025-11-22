@@ -4,6 +4,8 @@ import 'dart:async';
 import 'dart:math';
 import 'knights_practice_timer.dart';
 
+enum TunerMode { real, simulation }
+
 class ViolinTuner extends StatefulWidget {
   const ViolinTuner({super.key});
 
@@ -13,9 +15,8 @@ class ViolinTuner extends StatefulWidget {
 
 class _ViolinTunerState extends State<ViolinTuner>
     with TickerProviderStateMixin {
-  // METHOD CHANNEL - connects to native code
   static const platform = MethodChannel('com.flutter_testapplication.tuner/audio');
-  
+
   static const Map<String, double> violinStrings = {
     'G': 196.00,
     'D': 293.66,
@@ -39,6 +40,8 @@ class _ViolinTunerState extends State<ViolinTuner>
   String currentSimulatedString = 'A';
   Random random = Random();
 
+  TunerMode? mode;
+
   @override
   void initState() {
     super.initState();
@@ -46,30 +49,39 @@ class _ViolinTunerState extends State<ViolinTuner>
       duration: const Duration(milliseconds: 100),
       vsync: this,
     );
-
-    _startAudio();
   }
 
-  // START NATIVE AUDIO PROCESSING
-  Future<void> _startAudio() async {
-    try {
-      // Start listening on native side
-      await platform.invokeMethod('startListening');
-      print('✅ Native audio started successfully');
-      
-      // Poll for pitch data
-      pitchTimer = Timer.periodic(const Duration(milliseconds: 50), (_) async {
+  Future<void> _startAudio(TunerMode selectedMode) async {
+    setState(() {
+      mode = selectedMode;
+      currentPitch = 0.0;
+      currentAmplitude = 0.0;
+      currentString = '';
+    });
+
+    if (mode == TunerMode.real) {
+      try {
+        await platform.invokeMethod('startListening');
+        print('✅ Native audio started successfully');
+      } catch (e) {
+        print('❌ Error starting native audio: $e');
+        print('Falling back to simulation mode');
+        mode = TunerMode.simulation;
+      }
+    }
+
+    pitchTimer = Timer.periodic(const Duration(milliseconds: 50), (_) async {
+      if (!mounted) return;
+
+      if (mode == TunerMode.real) {
         try {
           final result = await platform.invokeMethod('getPitch');
-          
           if (result != null) {
             double pitch = result['pitch'] ?? 0.0;
             double amplitude = result['amplitude'] ?? 0.0;
-            
             setState(() {
               currentAmplitude = amplitude;
-              
-              if (amplitude > 0.005) { // Only process if loud enough
+              if (amplitude > 0.005) {
                 currentPitch = _smoothPitch(pitch);
                 _updateTuningState();
               }
@@ -77,35 +89,27 @@ class _ViolinTunerState extends State<ViolinTuner>
           }
         } catch (e) {
           print('Error getting pitch: $e');
+          // fallback to simulation if native fails
+          setState(() => mode = TunerMode.simulation);
         }
-      });
-    } catch (e) {
-      print('❌ Error starting native audio: $e');
-      print('Falling back to simulation mode');
-      _startSimulationFallback();
-    }
-  }
-
-  // FALLBACK: Simulation mode (if native code fails)
-  void _startSimulationFallback() {
-    pitchTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
-      setState(() {
-        simulatedPitch += (random.nextDouble() - 0.5) * 10;
-
-        if (currentSimulatedString == 'G') {
-          simulatedPitch = simulatedPitch.clamp(180.0, 210.0);
-        } else if (currentSimulatedString == 'D') {
-          simulatedPitch = simulatedPitch.clamp(280.0, 310.0);
-        } else if (currentSimulatedString == 'A') {
-          simulatedPitch = simulatedPitch.clamp(430.0, 450.0);
-        } else if (currentSimulatedString == 'E') {
-          simulatedPitch = simulatedPitch.clamp(645.0, 675.0);
-        }
-
-        currentAmplitude = 0.05 + random.nextDouble() * 0.02;
-        currentPitch = _smoothPitch(simulatedPitch);
-        _updateTuningState();
-      });
+      } else {
+        // Simulation mode
+        setState(() {
+          simulatedPitch += (random.nextDouble() - 0.5) * 10;
+          if (currentSimulatedString == 'G') {
+            simulatedPitch = simulatedPitch.clamp(180.0, 210.0);
+          } else if (currentSimulatedString == 'D') {
+            simulatedPitch = simulatedPitch.clamp(280.0, 310.0);
+          } else if (currentSimulatedString == 'A') {
+            simulatedPitch = simulatedPitch.clamp(430.0, 450.0);
+          } else if (currentSimulatedString == 'E') {
+            simulatedPitch = simulatedPitch.clamp(645.0, 675.0);
+          }
+          currentAmplitude = 0.05 + random.nextDouble() * 0.02;
+          currentPitch = _smoothPitch(simulatedPitch);
+          _updateTuningState();
+        });
+      }
     });
   }
 
@@ -171,20 +175,54 @@ class _ViolinTunerState extends State<ViolinTuner>
         violinStrings[string]! + (random.nextDouble() - 0.5) * 20;
   }
 
-  @override
-  void dispose() {
+  Future<void> _stopAudio() async {
     pitchTimer?.cancel();
-    needleController.dispose();
+    pitchTimer = null;
     try {
-      platform.invokeMethod('stopListening');
+      await platform.invokeMethod('stopListening');
     } catch (e) {
       print('Error stopping audio: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    _stopAudio();
+    needleController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (mode == null) {
+      // Show mode selector
+      return Scaffold(
+        backgroundColor: const Color(0xFFDAA520),
+        appBar: AppBar(
+          title: const Text('🎻 Violin Tuner 🎻'),
+          backgroundColor: const Color(0xFFB22222),
+          centerTitle: true,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () => _startAudio(TunerMode.real),
+                child: const Text('Use Real Microphone (Android)'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => _startAudio(TunerMode.simulation),
+                child: const Text('Use Simulation Mode'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Normal tuner UI
     return Scaffold(
       backgroundColor: const Color(0xFFDAA520),
       appBar: AppBar(
@@ -202,7 +240,6 @@ class _ViolinTunerState extends State<ViolinTuner>
             child: Column(
               children: [
                 const SizedBox(height: 20),
-
                 Text(
                   currentString.isNotEmpty
                       ? 'String: $currentString'
@@ -214,9 +251,7 @@ class _ViolinTunerState extends State<ViolinTuner>
                     fontFamily: 'Georgia',
                   ),
                 ),
-
                 const SizedBox(height: 10),
-
                 Text(
                   currentPitch > 0
                       ? '${currentPitch.toStringAsFixed(1)} Hz'
@@ -226,12 +261,10 @@ class _ViolinTunerState extends State<ViolinTuner>
                     color: Color(0xFF8B0000),
                   ),
                 ),
-
                 const SizedBox(height: 40),
-
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final double gaugeSize = constraints.maxWidth * 0.3; 
+                    final double gaugeSize = constraints.maxWidth * 0.3;
                     return SizedBox(
                       width: gaugeSize,
                       height: gaugeSize,
@@ -239,30 +272,21 @@ class _ViolinTunerState extends State<ViolinTuner>
                     );
                   },
                 ),
-
                 const SizedBox(height: 50),
-
                 _buildDragonIndicator(),
-
                 const SizedBox(height: 40),
-
-                // In Tune Indicator
                 if (isInTune)
                   Text(
                     'In tune!',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF228B22),
+                      color: Color(0xFF228B22),
                     ),
                   ),
-
                 const SizedBox(height: 40),
-
                 _buildDemoControls(),
-
                 const SizedBox(height: 20),
-
                 Text(
                   'Web Demo: Simulated pitch data for testing UI/UX',
                   style: TextStyle(
@@ -271,16 +295,13 @@ class _ViolinTunerState extends State<ViolinTuner>
                     fontStyle: FontStyle.italic,
                   ),
                 ),
-
                 const SizedBox(height: 40),
-
                 ElevatedButton(
                   onPressed: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            const KnightsPracticeTimer(),
+                        builder: (context) => const KnightsPracticeTimer(),
                       ),
                     );
                   },
@@ -299,8 +320,7 @@ class _ViolinTunerState extends State<ViolinTuner>
                   ),
                   child: const Text(
                     'Continue to Practice →',
-                    style:
-                        TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -310,7 +330,6 @@ class _ViolinTunerState extends State<ViolinTuner>
       ),
     );
   }
-
   // NEEDLE GAUGE (RESPONSIVE)
   Widget _buildNeedleGauge(double size) {
     final double centerPinSize = size * 0.07;
