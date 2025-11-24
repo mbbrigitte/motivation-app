@@ -341,7 +341,7 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
       Icon(Icons.local_florist, color: Colors.green, size: 20),
       const SizedBox(width: 4),
       Text(
-        'Achievements: $_currentPoints',
+        'Points: $_currentPoints',
         style: const TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
