@@ -22,32 +22,24 @@ class FFTAudioService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createNotificationChannel()
-        val notification = buildNotification()
-        startForeground(1, notification)
-
-        if (intent?.action == STOP_ACTION) stopSelf()
-        return START_STICKY
-    }
-
-    private fun buildNotification(): Notification {
-        return NotificationCompat.Builder(this, channelId)
+        val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Violin Tuner Active")
             .setContentText("Listening for violin strings")
             .setSmallIcon(R.drawable.ic_tuner_notification)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .build()
+        startForeground(1, notification)
+
+        if (intent?.action == STOP_ACTION) stopSelf()
+        return START_STICKY
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Violin Tuner",
-                NotificationManager.IMPORTANCE_LOW
-            )
+            val channel = NotificationChannel(channelId, "Violin Tuner", NotificationManager.IMPORTANCE_LOW)
             val manager = getSystemService(NotificationManager::class.java)
-            manager?.createNotificationChannel(channel)
+            manager.createNotificationChannel(channel)
         }
     }
 

@@ -20,19 +20,23 @@ class FFT(private val n: Int) {
         val data = FloatArray(2 * n)
         audioFloats.forEachIndexed { i, f -> data[2 * i] = f }
 
-        // Bit-reverse ordering
+        // Bit-reverse
         var j = 0
         for (i in 0 until 2 * n step 2) {
             if (j > i) {
-                var temp = data[j]; data[j] = data[i]; data[i] = temp
-                temp = data[j + 1]; data[j + 1] = data[i + 1]; data[i + 1] = temp
+                var temp = data[j]
+                data[j] = data[i]
+                data[i] = temp
+                temp = data[j + 1]
+                data[j + 1] = data[i + 1]
+                data[i + 1] = temp
             }
             var m = n
             while (j and (m - 1) != 0) m = m shr 1
             j = j xor (m - 1)
         }
 
-        // Butterfly operations
+        // Butterfly
         var mmax = 2
         while (mmax < 2 * n) {
             val istep = mmax * 2
@@ -52,6 +56,7 @@ class FFT(private val n: Int) {
             mmax = istep
         }
 
-        return data
+        audioFloats.forEachIndexed { i, _ -> audioFloats[i] = data[i] }
+        return audioFloats
     }
 }
