@@ -11,9 +11,8 @@ import kotlin.math.sqrt
 class AudioProcessor {
     private var audioRecord: AudioRecord? = null
     private var isListening = false
-    private val fftSize = 4096  // Higher resolution for accuracy
+    private val fftSize = 4096  // Higher resolution
 
-    // Thread-safe access
     @Volatile var currentPitch: Double = 0.0
     @Volatile var currentAmplitude: Double = 0.0
 
@@ -32,7 +31,6 @@ class AudioProcessor {
             audioFormat,
             max(bufferSize, fftSize * 4)
         )
-
         audioRecord?.startRecording()
         isListening = true
 
@@ -53,19 +51,15 @@ class AudioProcessor {
                 }
 
                 val audioFloats = FloatArray(fftSize) { buffer[it].toFloat() / 32768f }
-
                 applyHannWindow(audioFloats)
 
                 val fftData = fft.forwardTransform(audioFloats)
-
                 val (pitch, amplitude) = findDominantFrequency(fftData)
 
                 currentAmplitude = amplitude.toDouble()
                 currentPitch = pitch
             }
-        }.apply {
-            priority = Thread.MAX_PRIORITY
-        }.start()
+        }.apply { priority = Thread.MAX_PRIORITY }.start()
     }
 
     private fun applyHannWindow(signal: FloatArray) {
@@ -78,38 +72,30 @@ class AudioProcessor {
     private fun findDominantFrequency(fftData: FloatArray): Pair<Double, Float> {
         var maxMagnitude = 0f
         var maxIndex = 0
-
         for (i in 1 until fftData.size / 2) {
             val real = fftData[2 * i]
             val imag = fftData[2 * i + 1]
             val magnitude = sqrt(real * real + imag * imag)
-
             if (magnitude > maxMagnitude) {
                 maxMagnitude = magnitude
                 maxIndex = i
             }
         }
-
         val freqResolution = sampleRate.toDouble() / fftSize
         val frequency = maxIndex * freqResolution
-
         val alpha = fftData[2 * maxIndex]
         val beta = fftData[2 * (maxIndex - 1)]
         val gamma = fftData[2 * (maxIndex + 1)]
         val delta = 0.5 * (gamma - beta) / (2 * alpha - beta - gamma)
-
         return (frequency + delta * freqResolution) to maxMagnitude
     }
 
     fun stopListening() {
-        try {
-            isListening = false
-            audioRecord?.run {
-                try {
-                    stop()
-                } catch (e: IllegalStateException) {
-                    // Ignore already stopped
-                }
-                release()
-            }
-            audioRecord = null
+        isListening = false
+        audioRecord?.run {
+            try { stop() } catch (e: IllegalStateException) {}
+            release()
+        }
+        audioRecord = null
+    }
+}

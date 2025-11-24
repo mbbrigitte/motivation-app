@@ -8,7 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import com.example.flutter_testapplication.MainActivity
+import com.example.flutter_testapplication.R
 
 class FFTAudioService : Service() {
     private val channelId = "fft_tuner_channel"
@@ -22,14 +22,10 @@ class FFTAudioService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createNotificationChannel()
-
         val notification = buildNotification()
         startForeground(1, notification)
 
-        if (intent?.action == STOP_ACTION) {
-            stopSelf()
-        }
-
+        if (intent?.action == STOP_ACTION) stopSelf()
         return START_STICKY
     }
 
@@ -41,6 +37,18 @@ class FFTAudioService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .build()
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Violin Tuner",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager?.createNotificationChannel(channel)
+        }
     }
 
     override fun onDestroy() {

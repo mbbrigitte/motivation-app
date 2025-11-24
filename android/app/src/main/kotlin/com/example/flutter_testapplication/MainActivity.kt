@@ -1,23 +1,12 @@
-// android/app/src/main/java/com/example/flutter_testapplication/MainActivity.kt
 package com.example.flutter_testapplication
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.media.AudioFormat
-import android.media.AudioRecord
-import android.media.MediaRecorder
-import android.os.Build
 import androidx.core.app.ActivityCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.max
-import kotlin.math.sqrt
-import kotlin.math.sin
-
+import com.example.flutter_testapplication.audio.AudioProcessor
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.flutter_testapplication.tuner/audio"
@@ -26,31 +15,28 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        
+
         audioProcessor = AudioProcessor()
-        
+
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "startListening" -> handleStartListening(result)
                 "stopListening" -> handleStopListening(result)
-                "getPitch" -> result.success(mapOf(
-                    "pitch" to audioProcessor.currentPitch,
-                    "amplitude" to audioProcessor.currentAmplitude
-                ))
+                "getPitch" -> result.success(
+                    mapOf(
+                        "pitch" to audioProcessor.currentPitch,
+                        "amplitude" to audioProcessor.currentAmplitude
+                    )
+                )
                 else -> result.notImplemented()
             }
         }
     }
 
     private fun handleStartListening(result: MethodChannel.Result) {
-        // Start foreground service FIRST
-        startForegroundService()
-        
-        // Then check/request permissions
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.RECORD_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
+        // Check/request permissions
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED
         ) {
             ActivityCompat.requestPermissions(
                 this,
@@ -69,7 +55,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun handleStopListening(result: MethodChannel.Result) {
-        stopService(Intent(this, FFTAudioService::class.java))
+        audioProcessor.stopListening()
         result.success(null)
     }
 
@@ -84,16 +70,4 @@ class MainActivity : FlutterActivity() {
             }
         }
     }
-
-    private fun startForegroundService() {
-        val serviceIntent = Intent(this, FFTAudioService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
-        } else {
-            startService(serviceIntent)
-        }
-    }
 }
-
-
-
