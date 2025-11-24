@@ -56,9 +56,9 @@ class AudioProcessor {
 
                 applyHannWindow(audioFloats)
 
-                fft.forwardTransform(audioFloats)
+                val fftData = fft.forwardTransform(audioFloats)
 
-                val (pitch, amplitude) = findDominantFrequency(audioFloats)
+                val (pitch, amplitude) = findDominantFrequency(fftData)
 
                 currentAmplitude = amplitude.toDouble()
                 currentPitch = pitch
