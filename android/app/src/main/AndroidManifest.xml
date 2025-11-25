@@ -1,20 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.flutter_testapplication">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Required permissions -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <application
         android:name="${applicationName}"
         android:label="Violin Motivation Adventure"
         android:icon="@mipmap/ic_launcher">
 
-        <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -34,19 +28,11 @@
             </intent-filter>
         </activity>
 
-        <!-- Audio Processing Service -->
-        <service
-            android:name=".audio.FFTAudioService"
-            android:foregroundServiceType="microphone"
-            android:exported="false" />
-
-        <!-- Flutter configuration -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
-    <!-- Text processing queries -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
