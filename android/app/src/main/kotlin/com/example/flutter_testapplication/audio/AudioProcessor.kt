@@ -140,15 +140,17 @@ class AudioProcessor {
         // Step 3: Find minimum below threshold
         val threshold = 0.15f
         var minTau = -1
+        var searchTau = 2
 
-        for (tau in 2 until halfSize) {
-            if (yinBuffer[tau] < threshold) {
-                while (tau + 1 < halfSize && yinBuffer[tau + 1] < yinBuffer[tau]) {
-                    tau++
+        while (searchTau < halfSize) {
+            if (yinBuffer[searchTau] < threshold) {
+                while (searchTau + 1 < halfSize && yinBuffer[searchTau + 1] < yinBuffer[searchTau]) {
+                    searchTau++
                 }
-                minTau = tau
+                minTau = searchTau
                 break
             }
+            searchTau++
         }
 
         // Fallback: find global minimum
