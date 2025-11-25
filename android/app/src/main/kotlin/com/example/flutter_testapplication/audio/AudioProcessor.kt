@@ -3,12 +3,14 @@ package com.example.flutter_testapplication.audio
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.util.Log
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sqrt
 
 class AudioProcessor {
+
     private var audioRecord: AudioRecord? = null
     private var isListening = false
     private val fftSize = 4096
@@ -24,41 +26,63 @@ class AudioProcessor {
     fun startListening() {
         if (audioRecord != null || isListening) return
 
-        audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            sampleRate,
-            channelConfig,
-            audioFormat,
-            max(bufferSize, fftSize * 4)
-        )
+        try {
+            audioRecord = AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                sampleRate,
+                channelConfig,
+                audioFormat,
+                max(bufferSize, fftSize * 4)
+            )
 
-        audioRecord?.startRecording()
-        isListening = true
+            audioRecord?.startRecording()
+            isListening = true
 
-        Thread {
-            val buffer = ShortArray(fftSize)
-            val fft = FFT(fftSize)
+            Thread {
+                try {
+                    val buffer = ShortArray(fftSize)
+                    val fft = FFT(fftSize)
 
-            while (isListening) {
-                val read = try {
-                    audioRecord?.read(buffer, 0, fftSize, AudioRecord.READ_BLOCKING) ?: 0
-                } catch (e: IllegalStateException) { -1 }
+                    while (isListening) {
+                        val read = try {
+                            audioRecord?.read(buffer, 0, fftSize, AudioRecord.READ_BLOCKING) ?: 0
+                        } catch (e: Exception) {
+                            Log.e("AudioProcessor", "Error reading audio: ${e.message}", e)
+                            0
+                        }
 
-                if (read < fftSize) {
-                    Thread.sleep(10)
-                    continue
+                        if (read < fftSize) {
+                            Thread.sleep(10)
+                            continue
+                        }
+
+                        val audioFloats = FloatArray(fftSize) { buffer[it].toFloat() / 32768f }
+                        applyHannWindow(audioFloats)
+
+                        val fftData = try {
+                            fft.forwardTransform(audioFloats)
+                        } catch (e: Exception) {
+                            Log.e("AudioProcessor", "FFT transform failed: ${e.message}", e)
+                            FloatArray(fftSize) // fallback empty array
+                        }
+
+                        try {
+                            val (pitch, amplitude) = findDominantFrequency(fftData)
+                            currentPitch = pitch
+                            currentAmplitude = amplitude.toDouble()
+                        } catch (e: Exception) {
+                            Log.e("AudioProcessor", "Error finding dominant frequency: ${e.message}", e)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("AudioProcessor", "Error in listening thread: ${e.message}", e)
                 }
-
-                val audioFloats = FloatArray(fftSize) { buffer[it].toFloat() / 32768f }
-                applyHannWindow(audioFloats)
-
-                val fftData = fft.forwardTransform(audioFloats)
-                val (pitch, amplitude) = findDominantFrequency(fftData)
-
-                currentAmplitude = amplitude.toDouble()
-                currentPitch = pitch
-            }
-        }.apply { priority = Thread.MAX_PRIORITY }.start()
+            }.apply {
+                priority = Thread.MAX_PRIORITY
+            }.start()
+        } catch (e: Exception) {
+            Log.e("AudioProcessor", "Failed to start AudioRecord: ${e.message}", e)
+        }
     }
 
     private fun applyHannWindow(signal: FloatArray) {
@@ -71,6 +95,7 @@ class AudioProcessor {
     private fun findDominantFrequency(fftData: FloatArray): Pair<Double, Float> {
         var maxMagnitude = 0f
         var maxIndex = 0
+
         for (i in 1 until fftData.size / 2) {
             val real = fftData[2 * i]
             val imag = fftData[2 * i + 1]
@@ -93,11 +118,15 @@ class AudioProcessor {
     }
 
     fun stopListening() {
-        isListening = false
-        audioRecord?.run {
-            try { stop() } catch (e: IllegalStateException) {}
-            release()
+        try {
+            isListening = false
+            audioRecord?.run {
+                try { stop() } catch (e: Exception) { /* ignore */ }
+                try { release() } catch (e: Exception) { /* ignore */ }
+            }
+            audioRecord = null
+        } catch (e: Exception) {
+            Log.e("AudioProcessor", "Error stopping AudioRecord: ${e.message}", e)
         }
-        audioRecord = null
     }
 }

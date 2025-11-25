@@ -7,44 +7,73 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.example.flutter_testapplication.R
 
 class FFTAudioService : Service() {
+
     private val channelId = "fft_tuner_channel"
-    private lateinit var audioProcessor: AudioProcessor
+    private var audioProcessor: AudioProcessor? = null
 
     override fun onCreate() {
         super.onCreate()
-        audioProcessor = AudioProcessor()
-        audioProcessor.startListening()
+        try {
+            audioProcessor = AudioProcessor()
+            audioProcessor?.startListening()
+        } catch (e: Exception) {
+            Log.e("FFTAudioService", "Error starting AudioProcessor: ${e.message}", e)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createNotificationChannel()
-        val notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Violin Tuner Active")
-            .setContentText("Listening for violin strings")
-            .setSmallIcon(R.drawable.ic_tuner_notification)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true)
-            .build()
+        val notification = buildNotification()
         startForeground(1, notification)
 
-        if (intent?.action == STOP_ACTION) stopSelf()
+        if (intent?.action == STOP_ACTION) {
+            stopSelf()
+        }
+
         return START_STICKY
+    }
+
+    private fun buildNotification(): Notification {
+        return try {
+            NotificationCompat.Builder(this, channelId)
+                .setContentTitle("Violin Tuner Active")
+                .setContentText("Listening for violin strings")
+                .setSmallIcon(android.R.drawable.ic_media_play)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
+                .build()
+        } catch (e: Exception) {
+            Log.e("FFTAudioService", "Failed to build notification: ${e.message}", e)
+            Notification()
+        }
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Violin Tuner", NotificationManager.IMPORTANCE_LOW)
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+            try {
+                val channel = NotificationChannel(
+                    channelId,
+                    "Violin Tuner",
+                    NotificationManager.IMPORTANCE_LOW
+                )
+                val manager = getSystemService(NotificationManager::class.java)
+                manager?.createNotificationChannel(channel)
+            } catch (e: Exception) {
+                Log.e("FFTAudioService", "Failed to create notification channel: ${e.message}", e)
+            }
         }
     }
 
     override fun onDestroy() {
-        audioProcessor.stopListening()
+        try {
+            audioProcessor?.stopListening()
+        } catch (e: Exception) {
+            Log.e("FFTAudioService", "Error stopping AudioProcessor: ${e.message}", e)
+        }
         super.onDestroy()
     }
 
