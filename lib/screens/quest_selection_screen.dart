@@ -15,7 +15,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen> {
     {'name': '30 minutes practice', 'tokens': '+6 tokens'},
     {'name': 'Self-motivated hero', 'tokens': '+1 token'},
     {'name': 'Practice scale with goal setting', 'tokens': '+1 token'},
-    {'name': 'Listen to Suzuki songs', 'tokens': '+1 token'},
+    {'name': 'Listen to violin pieces', 'tokens': '+1 token'},
   ];
 
   final Set<int> _selectedQuests = {};
