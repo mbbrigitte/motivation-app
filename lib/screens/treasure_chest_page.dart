@@ -23,7 +23,7 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
     {'name': '⏱️ 30 minute practice', 'tokens': 6},
     {'name': '⭐ Self-motivated hero', 'tokens': 1},
     {'name': '🎯 Practice scale with goal setting', 'tokens': 1},
-    {'name': '🎵 Listen to Suzuki songs', 'tokens': 1},
+    {'name': '🎵 Listen to pieces from your repertoire', 'tokens': 1},
   ];
 
   @override
@@ -323,33 +323,33 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
     );
   }
 
- Widget _buildTokenCounter() {
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      // Tokens
-      Icon(Icons.circle, color: Colors.amber, size: 22),
-      const SizedBox(width: 8),
-      Text(
-        'Tokens: $_currentTokens / 250   |  ',
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
+  Widget _buildTokenCounter() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Tokens
+        Icon(Icons.circle, color: Colors.amber, size: 22),
+        const SizedBox(width: 8),
+        Text(
+          'Tokens: $_currentTokens  |  ',
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-      ),
-      // Achievements with little icon
-      Icon(Icons.local_florist, color: Colors.green, size: 20),
-      const SizedBox(width: 4),
-      Text(
-        'Points: $_currentPoints',
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
+        // Achievements with little icon
+        Icon(Icons.local_florist, color: Colors.green, size: 20),
+        const SizedBox(width: 4),
+        Text(
+          'Points: $_currentPoints',
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 
   Widget _buildProgressBar() {
     return Container(
@@ -395,65 +395,66 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
     );
   }
 
+  // 🎯 CHANGE #1: Made the video display smaller (max 200px instead of 350px)
   Widget _buildVideoBox() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        double maxSize = constraints.maxWidth.clamp(160, 350);
+        double maxSize = constraints.maxWidth.clamp(120, 200); // ← Changed from 350 to 200
 
         return SizedBox(
           width: maxSize,
           height: maxSize,
-            child: _isVideoInitialized
-                ? FittedBox(
-                    fit: BoxFit.contain,
-                    child: SizedBox(
-                      width: _videoController.value.size.width,
-                      height: _videoController.value.size.height,
-                      child: Container(
-                        color: Colors.transparent, // <-- Set the background color here
-                        child: VideoPlayer(_videoController),
-                      ),
+          child: _isVideoInitialized
+              ? FittedBox(
+                  fit: BoxFit.contain,
+                  child: SizedBox(
+                    width: _videoController.value.size.width,
+                    height: _videoController.value.size.height,
+                    child: Container(
+                      color: Colors.transparent,
+                      child: VideoPlayer(_videoController),
                     ),
-                  )
-                : const Center(child: CircularProgressIndicator()),
+                  ),
+                )
+              : const Center(child: CircularProgressIndicator()),
         );
       },
     );
   }
 
- Widget _buildButtonsLeft() {
-  return Row(
-    children: [
-      Expanded(
-        child: ElevatedButton(
-          onPressed: _showRedeemDialog,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red[700],
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+  Widget _buildButtonsLeft() {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton(
+            onPressed: _showRedeemDialog,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[700],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
+            child: const Text('Redeem Tokens'),
           ),
-          child: const Text('Redeem Tokens'),
         ),
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: ElevatedButton(
-          onPressed: _navigateToKnightScreen,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.green[700],
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: _navigateToKnightScreen,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green[700],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
+            child: const Text("View Knight's Journey"),
           ),
-          child: const Text("View Knight's Journey"),
         ),
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 }

@@ -38,13 +38,24 @@ class _EntranceScreenState extends State<EntranceScreen> {
     });
   }
 
+  // 🎯 FIX #1: Added setState() call to trigger rebuild when video plays
   void _startSequence() async {
     if (!_videoController.value.isInitialized) return;
+
+    setState(() {
+      _hasStarted = true;
+    });
 
     // Play video from start
     await _videoController.seekTo(Duration.zero);
     await _videoController.play();
-    setState(() {}); // force rebuild to update first frame
+    
+    // 🎯 FIX #2: Added addListener to update UI when video position changes
+    _videoController.addListener(() {
+      if (mounted) {
+        setState(() {}); // This forces the UI to rebuild and show video frames
+      }
+    });
 
     // Start violin audio
     await _violinPlayer.play(AssetSource('audio/intro1.mp3'));
@@ -59,9 +70,11 @@ class _EntranceScreenState extends State<EntranceScreen> {
 
     // Navigate to quest selection after 18 seconds
     _endTimer = Timer(const Duration(seconds: 18), () {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const QuestSelectionScreen()),
-      );
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const QuestSelectionScreen()),
+        );
+      }
     });
   }
 
@@ -111,16 +124,13 @@ class _EntranceScreenState extends State<EntranceScreen> {
       body: Stack(
         children: [
           // Video background
+          // 🎯 FIX #3: Removed AnimatedBuilder and simplified video display
+          // AnimatedBuilder was causing issues on Android
           Center(
             child: _videoController.value.isInitialized
-                ? AnimatedBuilder(
-                    animation: _videoController,
-                    builder: (context, child) {
-                      return AspectRatio(
-                        aspectRatio: _videoController.value.aspectRatio,
-                        child: VideoPlayer(_videoController),
-                      );
-                    },
+                ? AspectRatio(
+                    aspectRatio: _videoController.value.aspectRatio,
+                    child: VideoPlayer(_videoController),
                   )
                 : const CircularProgressIndicator(),
           ),
@@ -167,12 +177,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
               color: Colors.black54,
               child: Center(
                 child: ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _hasStarted = true;
-                    });
-                    _startSequence();
-                  },
+                  onPressed: _startSequence,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFB22222),
                     foregroundColor: Colors.white,
@@ -203,4 +208,4 @@ class _EntranceScreenState extends State<EntranceScreen> {
       ),
     );
   }
-}// finished yay
+}
