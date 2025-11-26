@@ -33,12 +33,16 @@ class _EntranceScreenState extends State<EntranceScreen> {
     await _videoController.initialize();
     await _videoController.setLooping(false);
 
+    // 🎯 FIX: Seek to a small offset (like TreasureChest does) and pause
+    // This preloads the video and makes Android happy
+    await _videoController.seekTo(const Duration(milliseconds: 100));
+    await _videoController.pause();
+
     setState(() {
       _isInitialized = true;
     });
   }
 
-  // 🎯 FIX #1: Added setState() call to trigger rebuild when video plays
   void _startSequence() async {
     if (!_videoController.value.isInitialized) return;
 
@@ -46,14 +50,15 @@ class _EntranceScreenState extends State<EntranceScreen> {
       _hasStarted = true;
     });
 
-    // Play video from start
-    await _videoController.seekTo(Duration.zero);
+    // 🎯 FIX: Seek to the actual beginning (not Duration.zero, but milliseconds: 1)
+    // Duration.zero can cause issues on Android
+    await _videoController.seekTo(const Duration(milliseconds: 1));
     await _videoController.play();
     
-    // 🎯 FIX #2: Added addListener to update UI when video position changes
+    // Force UI updates as video plays
     _videoController.addListener(() {
       if (mounted) {
-        setState(() {}); // This forces the UI to rebuild and show video frames
+        setState(() {});
       }
     });
 
@@ -79,7 +84,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
   }
 
   void _startViolinFade() {
-    const fadeSteps = 90; // 100ms per step
+    const fadeSteps = 90;
     const fadeDuration = Duration(milliseconds: 100);
     int currentStep = 0;
 
@@ -124,8 +129,6 @@ class _EntranceScreenState extends State<EntranceScreen> {
       body: Stack(
         children: [
           // Video background
-          // 🎯 FIX #3: Removed AnimatedBuilder and simplified video display
-          // AnimatedBuilder was causing issues on Android
           Center(
             child: _videoController.value.isInitialized
                 ? AspectRatio(
