@@ -18,6 +18,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
 
   bool _isInitialized = false;
   bool _hasStarted = false;
+  bool _isPlaying = false;
   Timer? _fadeTimer;
   Timer? _knightTimer;
   Timer? _endTimer;
@@ -33,34 +34,42 @@ class _EntranceScreenState extends State<EntranceScreen> {
     await _videoController.initialize();
     await _videoController.setLooping(false);
 
-    // 🎯 FIX: Seek to a small offset (like TreasureChest does) and pause
-    // This preloads the video and makes Android happy
-    await _videoController.seekTo(const Duration(milliseconds: 100));
+    // 🎯 CRITICAL FIX #1: Seek to a position and pause IMMEDIATELY after init (like TreasureChest)
+    await _videoController.seekTo(const Duration(milliseconds: 500));
     await _videoController.pause();
+
+    // 🎯 CRITICAL FIX #2: Add listener BEFORE starting (like TreasureChest)
+    _videoController.addListener(_videoListener);
 
     setState(() {
       _isInitialized = true;
     });
   }
 
+  // 🎯 CRITICAL FIX #3: Video state listener (exactly like TreasureChest)
+  void _videoListener() {
+    if (_videoController.value.position >= _videoController.value.duration &&
+        _isPlaying) {
+      setState(() => _isPlaying = false);
+      _videoController.pause();
+    }
+    // Force UI update on every video position change
+    if (mounted && _isPlaying) {
+      setState(() {});
+    }
+  }
+
   void _startSequence() async {
-    if (!_videoController.value.isInitialized) return;
+    if (!_videoController.value.isInitialized || _isPlaying) return;
 
     setState(() {
       _hasStarted = true;
+      _isPlaying = true;
     });
 
-    // 🎯 FIX: Seek to the actual beginning (not Duration.zero, but milliseconds: 1)
-    // Duration.zero can cause issues on Android
-    await _videoController.seekTo(const Duration(milliseconds: 1));
+    // 🎯 CRITICAL FIX #4: Seek to beginning THEN play (like TreasureChest does with Duration.zero)
+    await _videoController.seekTo(Duration.zero);
     await _videoController.play();
-    
-    // Force UI updates as video plays
-    _videoController.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
 
     // Start violin audio
     await _violinPlayer.play(AssetSource('audio/intro1.mp3'));
@@ -102,6 +111,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
 
   @override
   void dispose() {
+    _videoController.removeListener(_videoListener); // Remove listener like TreasureChest
     _videoController.dispose();
     _violinPlayer.dispose();
     _knightPlayer.dispose();
@@ -128,7 +138,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
       backgroundColor: const Color(0xFFDAA520),
       body: Stack(
         children: [
-          // Video background
+          // Video background - simplified like TreasureChest approach
           Center(
             child: _videoController.value.isInitialized
                 ? AspectRatio(
