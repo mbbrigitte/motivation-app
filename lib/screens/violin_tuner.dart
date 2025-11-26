@@ -226,31 +226,23 @@ class _ViolinTunerState extends State<ViolinTuner>
                 const SizedBox(height: 50),
                 _buildDragonIndicator(),
                 const SizedBox(height: 40),
-                if (isInTune)
-                  Text(
-                    'In tune!',
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF228B22),
+                // 🎯 FIX #1: Made "In tune!" always take up space, just invisible when not in tune
+                SizedBox(
+                  height: 36, // Fixed height to prevent layout shift
+                  child: Opacity(
+                    opacity: isInTune ? 1.0 : 0.0,
+                    child: const Text(
+                      'In tune!',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF228B22),
+                      ),
                     ),
                   ),
+                ),
                 const SizedBox(height: 40),
-                if (!hasError && currentAmplitude < 0.005)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 20),
-                    child: Column(
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 10),
-                        Text(
-                          'Ready to detect violin...',
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                      ],
-                    ),
-                  ),
-                const SizedBox(height: 40),
+                // Continue to Practice button (no longer moves)
                 ElevatedButton(
                   onPressed: () {
                     Navigator.push(
@@ -278,6 +270,19 @@ class _ViolinTunerState extends State<ViolinTuner>
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                 ),
+                // 🎯 FIX #2: Moved "Ready to detect violin" below the button
+                const SizedBox(height: 20),
+                if (!hasError && currentAmplitude < 0.005)
+                  const Column(
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 10),
+                      Text(
+                        'Ready to detect violin...',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -357,7 +362,8 @@ class _ViolinTunerState extends State<ViolinTuner>
   // DRAGON INDICATOR
   Widget _buildDragonIndicator() {
     double normalized = (detuneAmount + 50) / 100;
-    double verticalDrop = isInTune ? 10 : 0;
+    // 🎯 FIX #3: Increased crown drop from 10 to 25 when in tune
+    double verticalDrop = isInTune ? 25 : 0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
