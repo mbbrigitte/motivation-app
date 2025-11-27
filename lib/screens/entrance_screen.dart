@@ -36,8 +36,6 @@ class _EntranceScreenState extends State<EntranceScreen> {
 
     await _videoController.initialize();
     await _videoController.setLooping(false);
-
-    await _videoController.seekTo(const Duration(milliseconds: 500));
     await _videoController.pause();
 
     _videoController.addListener(_videoListener);
@@ -47,8 +45,11 @@ class _EntranceScreenState extends State<EntranceScreen> {
 
   // EXACT SAME listener pattern as TreasureChest
   void _videoListener() {
-    if (_videoController.value.position >= _videoController.value.duration &&
-        _isPlaying) {
+    final value = _videoController.value;
+
+   if (_isPlaying &&
+      value.duration > Duration.zero &&   // Prevent invalid state
+      value.position >= value.duration) {
       setState(() => _isPlaying = false);
       _videoController.seekTo(const Duration(milliseconds: 500));
       _videoController.pause();
@@ -68,12 +69,20 @@ class _EntranceScreenState extends State<EntranceScreen> {
   }
 
   // This is like _collectTokens in TreasureChest - triggers video playback
-  Future<void> _startSequence() async {
-    if (_isVideoInitialized && !_isPlaying) {
-      setState(() => _isPlaying = true);
-      await _videoController.seekTo(Duration.zero);
-      await _videoController.play();
-    }
+void _startSequence() async {
+  if (_isVideoInitialized && !_isPlaying) {
+    setState(() => _isPlaying = true);
+
+    _videoController.removeListener(_videoListener); // remove early listener
+    await _videoController.seekTo(Duration.zero);
+
+    // delay to avoid Android returning position==duration
+    await Future.delayed(const Duration(milliseconds: 100));
+    _videoController.addListener(_videoListener);
+
+    await _videoController.play();
+  }
+
 
     // Start violin audio
     await _violinPlayer.play(AssetSource('audio/intro1.mp3'));
