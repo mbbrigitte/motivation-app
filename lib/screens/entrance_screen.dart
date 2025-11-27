@@ -30,7 +30,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
 
   Future<void> _initializeAndAutoPlay() async {
     // Initialize video
-    _videoController = VideoPlayerController.asset('assets/videos/Knight_just_talks.mp4');
+    _videoController = VideoPlayerController.asset('assets/videos/dragon_on_chest.mp4');
     await _videoController.initialize();
     await _videoController.setLooping(false);
 
