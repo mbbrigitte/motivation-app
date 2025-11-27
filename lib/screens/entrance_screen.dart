@@ -16,7 +16,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
   final AudioPlayer _violinPlayer = AudioPlayer();
   final AudioPlayer _knightPlayer = AudioPlayer();
 
-  bool _isInitialized = false;
+  bool _isVideoInitialized = false; // Changed to match TreasureChest naming
   bool _isPlaying = false;
   Timer? _fadeTimer;
   Timer? _knightTimer;
@@ -25,56 +25,55 @@ class _EntranceScreenState extends State<EntranceScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeAndAutoPlay();
+    _initializeVideo(); // Changed method name to match TreasureChest
   }
 
-  Future<void> _initializeAndAutoPlay() async {
-    // Initialize video
-    _videoController = VideoPlayerController.asset('assets/videos/dragon_on_chest.mp4');
+  // EXACT SAME pattern as TreasureChest
+  Future<void> _initializeVideo() async {
+    _videoController = VideoPlayerController.asset(
+      'assets/videos/Knight_just_talks.mp4',
+    );
+
     await _videoController.initialize();
     await _videoController.setLooping(false);
 
-    // Seek to 500ms and pause (like TreasureChest)
     await _videoController.seekTo(const Duration(milliseconds: 500));
     await _videoController.pause();
 
-    // Add listener before playing
     _videoController.addListener(_videoListener);
 
-    setState(() {
-      _isInitialized = true;
-    });
-
-    // Small delay to ensure everything is ready, then auto-start
-    await Future.delayed(const Duration(milliseconds: 300));
-    
-    if (mounted) {
-      _startSequence();
-    }
+    setState(() => _isVideoInitialized = true);
   }
 
+  // EXACT SAME listener pattern as TreasureChest
   void _videoListener() {
     if (_videoController.value.position >= _videoController.value.duration &&
         _isPlaying) {
       setState(() => _isPlaying = false);
+      _videoController.seekTo(const Duration(milliseconds: 500));
       _videoController.pause();
-    }
-    // Force UI update during playback
-    if (mounted && _isPlaying) {
-      setState(() {});
     }
   }
 
-  void _startSequence() async {
-    if (!_videoController.value.isInitialized || _isPlaying) return;
+  @override
+  void dispose() {
+    _videoController.removeListener(_videoListener);
+    _videoController.dispose();
+    _violinPlayer.dispose();
+    _knightPlayer.dispose();
+    _fadeTimer?.cancel();
+    _knightTimer?.cancel();
+    _endTimer?.cancel();
+    super.dispose();
+  }
 
-    setState(() {
-      _isPlaying = true;
-    });
-
-    // Seek to beginning and play
-    await _videoController.seekTo(Duration.zero);
-    await _videoController.play();
+  // This is like _collectTokens in TreasureChest - triggers video playback
+  Future<void> _startSequence() async {
+    if (_isVideoInitialized && !_isPlaying) {
+      setState(() => _isPlaying = true);
+      await _videoController.seekTo(Duration.zero);
+      await _videoController.play();
+    }
 
     // Start violin audio
     await _violinPlayer.play(AssetSource('audio/intro1.mp3'));
@@ -83,10 +82,8 @@ class _EntranceScreenState extends State<EntranceScreen> {
 
     // Play knight audio after 7 seconds and fade violin
     _knightTimer = Timer(const Duration(seconds: 7), () async {
-      if (mounted) {
-        await _knightPlayer.play(AssetSource('audio/Audio_knight.m4a'));
-        _startViolinFade();
-      }
+      await _knightPlayer.play(AssetSource('audio/Audio_knight.m4a'));
+      _startViolinFade();
     });
 
     // Navigate to quest selection after 18 seconds
@@ -117,20 +114,8 @@ class _EntranceScreenState extends State<EntranceScreen> {
   }
 
   @override
-  void dispose() {
-    _videoController.removeListener(_videoListener);
-    _videoController.dispose();
-    _violinPlayer.dispose();
-    _knightPlayer.dispose();
-    _fadeTimer?.cancel();
-    _knightTimer?.cancel();
-    _endTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (!_isInitialized) {
+    if (!_isVideoInitialized) {
       return const Scaffold(
         backgroundColor: Color(0xFFDAA520),
         body: Center(
@@ -145,12 +130,16 @@ class _EntranceScreenState extends State<EntranceScreen> {
       backgroundColor: const Color(0xFFDAA520),
       body: Stack(
         children: [
-          // Video background
+          // 🎯 CRITICAL: Use EXACT SAME video display pattern as TreasureChest
           Center(
-            child: _videoController.value.isInitialized
-                ? AspectRatio(
-                    aspectRatio: _videoController.value.aspectRatio,
-                    child: VideoPlayer(_videoController),
+            child: _isVideoInitialized
+                ? FittedBox(
+                    fit: BoxFit.contain,
+                    child: SizedBox(
+                      width: _videoController.value.size.width,
+                      height: _videoController.value.size.height,
+                      child: VideoPlayer(_videoController),
+                    ),
                   )
                 : const CircularProgressIndicator(),
           ),
@@ -192,6 +181,40 @@ class _EntranceScreenState extends State<EntranceScreen> {
               ),
             ),
           ),
+          
+          // Start button overlay
+          if (!_isPlaying)
+            Container(
+              color: Colors.black54,
+              child: Center(
+                child: ElevatedButton(
+                  onPressed: _startSequence,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFB22222),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 25),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    elevation: 10,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.play_arrow, size: 40),
+                      SizedBox(width: 10),
+                      Text(
+                        'Start',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

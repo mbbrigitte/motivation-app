@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/logo_splash_screen.dart';
+import 'screens/entrance_screen.dart';
 
 void main() {
   runApp(const KnightsPracticeApp());
@@ -13,7 +13,7 @@ class KnightsPracticeApp extends StatelessWidget {
     return MaterialApp(
       title: 'Knight\'s Practice',
       theme: ThemeData(fontFamily: 'Georgia'),
-      home: const LogoSplashScreen(),
+      home: const EntranceScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
