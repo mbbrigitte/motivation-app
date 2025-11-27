@@ -17,7 +17,6 @@ class _EntranceScreenState extends State<EntranceScreen> {
   final AudioPlayer _knightPlayer = AudioPlayer();
 
   bool _isInitialized = false;
-  bool _hasStarted = false;
   bool _isPlaying = false;
   Timer? _fadeTimer;
   Timer? _knightTimer;
@@ -26,34 +25,41 @@ class _EntranceScreenState extends State<EntranceScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeEntrance();
+    _initializeAndAutoPlay();
   }
 
-  Future<void> _initializeEntrance() async {
+  Future<void> _initializeAndAutoPlay() async {
+    // Initialize video
     _videoController = VideoPlayerController.asset('assets/videos/Knight_just_talks.mp4');
     await _videoController.initialize();
     await _videoController.setLooping(false);
 
-    // 🎯 CRITICAL FIX #1: Seek to a position and pause IMMEDIATELY after init (like TreasureChest)
+    // Seek to 500ms and pause (like TreasureChest)
     await _videoController.seekTo(const Duration(milliseconds: 500));
     await _videoController.pause();
 
-    // 🎯 CRITICAL FIX #2: Add listener BEFORE starting (like TreasureChest)
+    // Add listener before playing
     _videoController.addListener(_videoListener);
 
     setState(() {
       _isInitialized = true;
     });
+
+    // Small delay to ensure everything is ready, then auto-start
+    await Future.delayed(const Duration(milliseconds: 300));
+    
+    if (mounted) {
+      _startSequence();
+    }
   }
 
-  // 🎯 CRITICAL FIX #3: Video state listener (exactly like TreasureChest)
   void _videoListener() {
     if (_videoController.value.position >= _videoController.value.duration &&
         _isPlaying) {
       setState(() => _isPlaying = false);
       _videoController.pause();
     }
-    // Force UI update on every video position change
+    // Force UI update during playback
     if (mounted && _isPlaying) {
       setState(() {});
     }
@@ -63,11 +69,10 @@ class _EntranceScreenState extends State<EntranceScreen> {
     if (!_videoController.value.isInitialized || _isPlaying) return;
 
     setState(() {
-      _hasStarted = true;
       _isPlaying = true;
     });
 
-    // 🎯 CRITICAL FIX #4: Seek to beginning THEN play (like TreasureChest does with Duration.zero)
+    // Seek to beginning and play
     await _videoController.seekTo(Duration.zero);
     await _videoController.play();
 
@@ -78,8 +83,10 @@ class _EntranceScreenState extends State<EntranceScreen> {
 
     // Play knight audio after 7 seconds and fade violin
     _knightTimer = Timer(const Duration(seconds: 7), () async {
-      await _knightPlayer.play(AssetSource('audio/Audio_knight.m4a'));
-      _startViolinFade();
+      if (mounted) {
+        await _knightPlayer.play(AssetSource('audio/Audio_knight.m4a'));
+        _startViolinFade();
+      }
     });
 
     // Navigate to quest selection after 18 seconds
@@ -111,7 +118,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
 
   @override
   void dispose() {
-    _videoController.removeListener(_videoListener); // Remove listener like TreasureChest
+    _videoController.removeListener(_videoListener);
     _videoController.dispose();
     _violinPlayer.dispose();
     _knightPlayer.dispose();
@@ -138,7 +145,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
       backgroundColor: const Color(0xFFDAA520),
       body: Stack(
         children: [
-          // Video background - simplified like TreasureChest approach
+          // Video background
           Center(
             child: _videoController.value.isInitialized
                 ? AspectRatio(
@@ -147,6 +154,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
                   )
                 : const CircularProgressIndicator(),
           ),
+          
           // Skip button
           Positioned(
             top: 40,
@@ -184,39 +192,6 @@ class _EntranceScreenState extends State<EntranceScreen> {
               ),
             ),
           ),
-          // Start button overlay
-          if (!_hasStarted)
-            Container(
-              color: Colors.black54,
-              child: Center(
-                child: ElevatedButton(
-                  onPressed: _startSequence,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFB22222),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 25),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(50),
-                    ),
-                    elevation: 10,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.play_arrow, size: 40),
-                      SizedBox(width: 10),
-                      Text(
-                        'Start',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
