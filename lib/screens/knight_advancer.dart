@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
 import 'guard_challenge.dart';
+import 'instrument_challenge.dart';
 import 'wishing_well_challenge.dart';
 import 'practice_finished.dart';
 
@@ -83,13 +84,13 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     
     switch (journey) {
       case 0:
-        return 'assets/images/Guard.png';
+        return 'assets/images/Instrument_wagon.png';
       case 1:
         return 'assets/images/Wishing_well.png';
       case 2:
         return 'assets/images/Treasure_chest_with_dragon.png';
       case 3:
-        return 'assets/images/Instrument_wagon.png';
+        return 'assets/images/Guard.png';
       case 4:
         return 'assets/images/Beethoven_house.png';
       case 5:
@@ -122,13 +123,13 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     
     switch (journey) {
       case 0:
-        return 'Journey to the Guard';
+        return 'Journey to the Instrument Wagon';
       case 1:
         return 'The Wishing Well';
       case 2:
         return 'Dragon\'s Treasure';
       case 3:
-        return 'The Instrument Wagon';
+        return 'Journey to the Guard';
       case 4:
         return 'Beethoven\'s House';
       case 5:
@@ -213,7 +214,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
       if (currentMilestone == 25) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const GuardChallenge()),
+          MaterialPageRoute(builder: (context) => const InstrumentChallenge()),
         );
       } else {
         Navigator.pushReplacement(

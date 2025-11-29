@@ -153,8 +153,8 @@ class _GuardChallengeState extends State<GuardChallenge> {
   setState(() {});
 
 
-    // WAIT 4 seconds at the final frame
-    await Future.delayed(const Duration(seconds: 4));
+    // WAIT 6 seconds at the final frame
+    await Future.delayed(const Duration(seconds: 6));
 
     // Add point & token
     await _addPointAndToken();
@@ -181,7 +181,7 @@ class _GuardChallengeState extends State<GuardChallenge> {
         ),
       );
 
-      await Future.delayed(const Duration(seconds: 5));
+      await Future.delayed(const Duration(seconds: 8));
 
       if (mounted) {
         Navigator.of(context).pop();

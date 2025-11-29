@@ -32,7 +32,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
   // Configure audio players for Android compatibility
   Future<void> _initializeAudioPlayers() async {
     try {
-      // Set audio context for better Android compatibility
+      // CRITICAL: Use AudioFocus.none to NOT steal focus from video
       await _violinPlayer.setAudioContext(
         AudioContext(
           iOS: AudioContextIOS(
@@ -46,7 +46,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
             stayAwake: true,
             contentType: AndroidContentType.music,
             usageType: AndroidUsageType.media,
-            audioFocus: AndroidAudioFocus.gain,
+            audioFocus: AndroidAudioFocus.none, // Don't steal focus from video!
           ),
         ),
       );
@@ -64,7 +64,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
             stayAwake: true,
             contentType: AndroidContentType.speech,
             usageType: AndroidUsageType.media,
-            audioFocus: AndroidAudioFocus.gain,
+            audioFocus: AndroidAudioFocus.none, // Don't steal focus from video!
           ),
         ),
       );
