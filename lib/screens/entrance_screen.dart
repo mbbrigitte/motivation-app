@@ -16,7 +16,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
   final AudioPlayer _violinPlayer = AudioPlayer();
   final AudioPlayer _knightPlayer = AudioPlayer();
 
-  bool _isVideoInitialized = false; // Changed to match TreasureChest naming
+  bool _isVideoInitialized = false;
   bool _isPlaying = false;
   Timer? _fadeTimer;
   Timer? _knightTimer;
@@ -25,10 +25,54 @@ class _EntranceScreenState extends State<EntranceScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeVideo(); // Changed method name to match TreasureChest
+    _initializeAudioPlayers();
+    _initializeVideo();
   }
 
-  // EXACT SAME pattern as TreasureChest
+  // Configure audio players for Android compatibility
+  Future<void> _initializeAudioPlayers() async {
+    try {
+      // Set audio context for better Android compatibility
+      await _violinPlayer.setAudioContext(
+        AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: [
+              AVAudioSessionOptions.mixWithOthers,
+            ],
+          ),
+          android: AudioContextAndroid(
+            isSpeakerphoneOn: false,
+            stayAwake: true,
+            contentType: AndroidContentType.music,
+            usageType: AndroidUsageType.media,
+            audioFocus: AndroidAudioFocus.gain,
+          ),
+        ),
+      );
+
+      await _knightPlayer.setAudioContext(
+        AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: [
+              AVAudioSessionOptions.mixWithOthers,
+            ],
+          ),
+          android: AudioContextAndroid(
+            isSpeakerphoneOn: false,
+            stayAwake: true,
+            contentType: AndroidContentType.speech,
+            usageType: AndroidUsageType.media,
+            audioFocus: AndroidAudioFocus.gain,
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Error configuring audio players: $e');
+    }
+  }
+
   Future<void> _initializeVideo() async {
     _videoController = VideoPlayerController.asset(
       'assets/videos/Knight_just_talks.mp4',
@@ -43,13 +87,12 @@ class _EntranceScreenState extends State<EntranceScreen> {
     setState(() => _isVideoInitialized = true);
   }
 
-  // EXACT SAME listener pattern as TreasureChest
   void _videoListener() {
     final value = _videoController.value;
 
-   if (_isPlaying &&
-      value.duration > Duration.zero &&   // Prevent invalid state
-      value.position >= value.duration) {
+    if (_isPlaying &&
+        value.duration > Duration.zero &&
+        value.position >= value.duration) {
       setState(() => _isPlaying = false);
       _videoController.seekTo(const Duration(milliseconds: 500));
       _videoController.pause();
@@ -68,23 +111,24 @@ class _EntranceScreenState extends State<EntranceScreen> {
     super.dispose();
   }
 
-  // This is like _collectTokens in TreasureChest - triggers video playback
-void _startSequence() async {
-  if (_isVideoInitialized && !_isPlaying) {
-    setState(() => _isPlaying = true);
+  void _startSequence() async {
+    if (_isVideoInitialized && !_isPlaying) {
+      setState(() => _isPlaying = true);
 
-    _videoController.removeListener(_videoListener); // remove early listener
-    await _videoController.seekTo(Duration.zero);
+      _videoController.removeListener(_videoListener);
+      await _videoController.seekTo(Duration.zero);
 
-    // delay to avoid Android returning position==duration
-    await Future.delayed(const Duration(milliseconds: 100));
-    _videoController.addListener(_videoListener);
+      // Delay to avoid Android returning position==duration
+      await Future.delayed(const Duration(milliseconds: 100));
+      _videoController.addListener(_videoListener);
 
-    await _videoController.play();
-  }
+      await _videoController.play();
 
+      // CRITICAL: Add delay before starting audio to prevent Android media session conflict
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
 
-    // Start violin audio
+    // Start violin audio after video has established its audio session
     await _violinPlayer.play(AssetSource('audio/intro1.mp3'));
     await _violinPlayer.seek(const Duration(seconds: 2));
     await _violinPlayer.setVolume(1.0);
@@ -139,7 +183,7 @@ void _startSequence() async {
       backgroundColor: const Color(0xFFDAA520),
       body: Stack(
         children: [
-          // 🎯 CRITICAL: Use EXACT SAME video display pattern as TreasureChest
+          // Video display
           Center(
             child: _isVideoInitialized
                 ? FittedBox(
