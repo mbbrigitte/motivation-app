@@ -5,7 +5,9 @@ import '../services/storage_service.dart';
 import 'practice_finished.dart';
 
 class InstrumentChallenge extends StatefulWidget {
-  const InstrumentChallenge({super.key});
+  final bool isReplay;
+  
+  const InstrumentChallenge({super.key, this.isReplay = false});
 
   @override
   State<InstrumentChallenge> createState() => _InstrumentChallengeState();
@@ -42,7 +44,7 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
   List<PuzzlePiece> pieces = [];
   bool isCompleted = false;
   bool _buttonPressed = false;
-  int _currentPoints = 0;
+  int _currentTokens = 0;
   bool showLabelChallenge = false;
   bool showLabelLearning = false;
   Map<String, bool> labelPlacements = {};
@@ -59,18 +61,23 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
   @override
   void initState() {
     super.initState();
-    _loadPoints();
+    _loadTokens();
     _initializePuzzle();
     // Initialize label placements
     for (var label in violinLabels) {
       labelPlacements[label.name] = false;
     }
+    
+    // Unlock this challenge when first accessed (not in replay mode)
+    if (!widget.isReplay) {
+      StorageService.unlockChallenge('instrument_challenge');
+    }
   }
 
-  Future<void> _loadPoints() async {
-    int points = await StorageService.loadPoints();
+  Future<void> _loadTokens() async {
+    int tokens = await StorageService.loadTokens();
     setState(() {
-      _currentPoints = points;
+      _currentTokens = tokens;
     });
   }
 
@@ -109,7 +116,10 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
   }
 
   Future<void> _onPuzzleComplete() async {
-    await _addPointAndToken();
+    // Only award tokens if not in replay mode
+    if (!widget.isReplay) {
+      await _addToken();
+    }
 
     if (mounted) {
       await Future.delayed(const Duration(milliseconds: 500));
@@ -127,7 +137,9 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Well done! You receive one extra token!\nYou now have a total of $_currentPoints points!',
+                widget.isReplay
+                    ? 'Excellent! Well done!'
+                    : 'Well done! You receive one token!\nYou now have a total of $_currentTokens tokens!',
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -135,61 +147,83 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 20),
-              const Text(
-                'Do you want an extra challenge?',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              if (!widget.isReplay) ...[
+                const SizedBox(height: 20),
+                const Text(
+                  'Do you want an extra challenge?',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
+              ],
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PracticeFinished()),
-                );
-              },
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.red[700],
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              ),
-              child: const Text(
-                'No',
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                setState(() {
-                  showLabelLearning = true;
-                  _buttonPressed = false;
-                });
-              },
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.green[900],
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              ),
-              child: const Text(
-                'Yes!',
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
-            ),
-          ],
+          actions: widget.isReplay
+              ? [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pop(); // Go back to challenges list
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.green[900],
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    ),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ),
+                ]
+              : [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => const PracticeFinished()),
+                      );
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.red[700],
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    ),
+                    child: const Text(
+                      'No',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      setState(() {
+                        showLabelLearning = true;
+                        _buttonPressed = false;
+                      });
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.green[900],
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    ),
+                    child: const Text(
+                      'Yes!',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ),
+                ],
         ),
       );
     }
   }
 
   Future<void> _onLabelChallengeComplete() async {
-    await _addPointAndToken();
+    // Only award tokens if not in replay mode
+    if (!widget.isReplay) {
+      await _addToken();
+    }
 
     if (mounted) {
       await Future.delayed(const Duration(milliseconds: 500));
@@ -204,7 +238,9 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
             side: const BorderSide(color: Colors.white, width: 3),
           ),
           content: Text(
-            'Excellent! You earned another token!\nYou now have a total of $_currentPoints points!',
+            widget.isReplay
+                ? 'Excellent! Well done!'
+                : 'Excellent! You earned another token!\nYou now have a total of $_currentTokens tokens!',
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -215,30 +251,33 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
         ),
       );
 
-      await Future.delayed(const Duration(seconds: 4));
+      await Future.delayed(const Duration(seconds: 3));
 
       if (mounted) {
         Navigator.of(context).pop();
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const PracticeFinished()),
-        );
+        if (widget.isReplay) {
+          Navigator.of(context).pop(); // Go back to challenges list
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const PracticeFinished()),
+          );
+        }
       }
     }
   }
 
-  Future<void> _addPointAndToken() async {
+  Future<void> _addToken() async {
     int currentTokens = await StorageService.loadTokens();
     await StorageService.saveTokens(currentTokens + 1);
 
     int totalTokens = await StorageService.loadTotalTokens();
     await StorageService.saveTotalTokens(totalTokens + 1);
 
-    await StorageService.addPoints(1);
-    int updatedPoints = await StorageService.loadPoints();
+    int updatedTokens = await StorageService.loadTokens();
 
     setState(() {
-      _currentPoints = updatedPoints;
+      _currentTokens = updatedTokens;
     });
   }
 

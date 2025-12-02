@@ -5,7 +5,9 @@ import '../services/storage_service.dart';
 import 'practice_finished.dart';
 
 class GuardChallenge extends StatefulWidget {
-  const GuardChallenge({super.key});
+  final bool isReplay;
+  
+  const GuardChallenge({super.key, this.isReplay = false});
 
   @override
   State<GuardChallenge> createState() => _GuardChallengeState();
@@ -16,20 +18,25 @@ class _GuardChallengeState extends State<GuardChallenge> {
   bool _isVideoInitialized = false;
   bool _isPlaying = false;
   bool _buttonPressed = false;
-  int _currentPoints = 0;
+  int _currentTokens = 0;
   Timer? _loopTimer;
 
   @override
   void initState() {
     super.initState();
-    _loadPoints();
+    _loadTokens();
     _initializeVideo();
+    
+    // Unlock this challenge when first accessed (not in replay mode)
+    if (!widget.isReplay) {
+      StorageService.unlockChallenge('guard_challenge');
+    }
   }
 
-  Future<void> _loadPoints() async {
-    int points = await StorageService.loadPoints();
+  Future<void> _loadTokens() async {
+    int tokens = await StorageService.loadTokens();
     setState(() {
-      _currentPoints = points;
+      _currentTokens = tokens;
     });
   }
 
@@ -81,13 +88,15 @@ class _GuardChallengeState extends State<GuardChallenge> {
 
     setState(() {
       _buttonPressed = true;
-      _isPlaying = true;  // FIX
+      _isPlaying = true;
     });
 
     await _stopLooping();
 
-    // Add point + token
-    await _addPointAndToken();
+    // Only award tokens if not in replay mode
+    if (!widget.isReplay) {
+      await _addToken();
+    }
 
     if (mounted) {
       showDialog(
@@ -100,7 +109,9 @@ class _GuardChallengeState extends State<GuardChallenge> {
             side: const BorderSide(color: Colors.white, width: 3),
           ),
           content: Text(
-            'Well done! The guard is still sleeping!\nYou get an extra point!\nYou now have a total of $_currentPoints points!',
+            widget.isReplay
+                ? 'Well done! The guard is still sleeping!'
+                : 'Well done! The guard is still sleeping!\nYou get one token!\nYou now have a total of $_currentTokens tokens!',
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -115,10 +126,14 @@ class _GuardChallengeState extends State<GuardChallenge> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const PracticeFinished()),
-        );
+        if (widget.isReplay) {
+          Navigator.of(context).pop(); // Go back to challenges list
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const PracticeFinished()),
+          );
+        }
       }
     }
   }
@@ -128,7 +143,7 @@ class _GuardChallengeState extends State<GuardChallenge> {
 
     setState(() {
       _buttonPressed = true;
-      _isPlaying = true;  // FIX
+      _isPlaying = true;
     });
 
     await _stopLooping();
@@ -137,27 +152,28 @@ class _GuardChallengeState extends State<GuardChallenge> {
     await _videoController.seekTo(Duration.zero);
     await _videoController.play();
 
-  // Wait until video actually reaches 7.8 seconds
-     while (_videoController.value.position <
-      const Duration(milliseconds: 7800)) {
-     await Future.delayed(const Duration(milliseconds: 50));
-     }
+    // Wait until video actually reaches 7.8 seconds
+    while (_videoController.value.position <
+        const Duration(milliseconds: 7800)) {
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
 
-  // Stop BEFORE it reaches the end
-  await _videoController.pause();
+    // Stop BEFORE it reaches the end
+    await _videoController.pause();
 
-  // Seek to the exact frame you want
-  await _videoController.seekTo(const Duration(milliseconds: 8000));
+    // Seek to the exact frame you want
+    await _videoController.seekTo(const Duration(milliseconds: 8000));
 
-  // Force-render that frame
-  setState(() {});
-
+    // Force-render that frame
+    setState(() {});
 
     // WAIT 6 seconds at the final frame
     await Future.delayed(const Duration(seconds: 6));
 
-    // Add point & token
-    await _addPointAndToken();
+    // Only award tokens if not in replay mode
+    if (!widget.isReplay) {
+      await _addToken();
+    }
 
     if (mounted) {
       showDialog(
@@ -170,7 +186,9 @@ class _GuardChallengeState extends State<GuardChallenge> {
             side: const BorderSide(color: Colors.white, width: 3),
           ),
           content: Text(
-            'The guard woke up but was happy!\nYou get an extra point!\nYou now have a total of $_currentPoints points!',
+            widget.isReplay
+                ? 'The guard woke up but was happy!'
+                : 'The guard woke up but was happy!\nYou get one token!\nYou now have a total of $_currentTokens tokens!',
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -185,26 +203,29 @@ class _GuardChallengeState extends State<GuardChallenge> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const PracticeFinished()),
-        );
+        if (widget.isReplay) {
+          Navigator.of(context).pop(); // Go back to challenges list
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const PracticeFinished()),
+          );
+        }
       }
     }
   }
 
-  Future<void> _addPointAndToken() async {
+  Future<void> _addToken() async {
     int currentTokens = await StorageService.loadTokens();
     await StorageService.saveTokens(currentTokens + 1);
 
     int totalTokens = await StorageService.loadTotalTokens();
     await StorageService.saveTotalTokens(totalTokens + 1);
 
-    await StorageService.addPoints(1);
-    int updatedPoints = await StorageService.loadPoints();
+    int updatedTokens = await StorageService.loadTokens();
 
     setState(() {
-      _currentPoints = updatedPoints;
+      _currentTokens = updatedTokens;
     });
   }
 

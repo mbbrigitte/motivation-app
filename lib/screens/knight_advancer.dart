@@ -105,8 +105,8 @@ class _KnightAdvancerState extends State<KnightAdvancer>
         return 'assets/images/Treasure_chest_with_dragon.png';
       default:
         int cycleIndex = journey % 3;
-        if (cycleIndex == 0) return 'assets/images/JS_Bach_on_Bench_paint.png';
-        if (cycleIndex == 1) return 'assets/images/Wishing_well.png';
+        if (cycleIndex == 0) return 'assets/images/Instrument_wagon.png';
+        if (cycleIndex == 1) return 'assets/images/Guard.png';
         return 'assets/images/Treasure_chest_with_dragon.png';
     }
   }
@@ -219,7 +219,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
       } else {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const WishingWellChallenge()),
+          MaterialPageRoute(builder: (context) => const GuardChallenge()),
         );
       }
       return;

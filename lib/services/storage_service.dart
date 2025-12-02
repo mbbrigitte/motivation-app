@@ -1,10 +1,12 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class StorageService {
   static const String _tokensKey = 'tokens_collected';
   static const String _totalTokensKey = 'total_tokens_ever';
-  static const String _pointsKey = 'points_total'; // NEW: separate points counter
+  static const String _pointsKey = 'points_total';
   static const String _lastMilestoneKey = 'last_handled_milestone';
+  static const String _unlockedChallengesKey = 'unlocked_challenges';
 
   // Knight animation keys
   static const String _animatedXKey = 'animated_x';
@@ -69,6 +71,50 @@ class StorageService {
   }
 
   // -----------------------------
+  // 🎯 CHALLENGES
+  // -----------------------------
+
+  /// Unlock a specific challenge
+  static Future<void> unlockChallenge(String challengeId) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> unlocked = await getUnlockedChallenges();
+    
+    if (!unlocked.contains(challengeId)) {
+      unlocked.add(challengeId);
+      await prefs.setString(_unlockedChallengesKey, json.encode(unlocked));
+    }
+  }
+
+  /// Get list of all unlocked challenges
+  static Future<List<String>> getUnlockedChallenges() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? unlockedJson = prefs.getString(_unlockedChallengesKey);
+    
+    if (unlockedJson == null || unlockedJson.isEmpty) {
+      return [];
+    }
+    
+    try {
+      List<dynamic> decoded = json.decode(unlockedJson);
+      return decoded.cast<String>();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Check if a specific challenge is unlocked
+  static Future<bool> isChallengeUnlocked(String challengeId) async {
+    List<String> unlocked = await getUnlockedChallenges();
+    return unlocked.contains(challengeId);
+  }
+
+  /// Reset all unlocked challenges (useful for testing)
+  static Future<void> resetChallenges() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_unlockedChallengesKey);
+  }
+
+  // -----------------------------
   // 🧍‍♂️ KNIGHT POSITION + SIZE
   // -----------------------------
 
@@ -114,7 +160,7 @@ class StorageService {
     return prefs.getDouble(_animatedSizeKey);
   }
 
-  // Clear knight position (used when tokens are redeemed)
+  /// Clear knight position (used when tokens are redeemed)
   static Future<void> clearKnightPosition() async {
     await saveAnimatedX(null);
     await saveAnimatedY(null);
@@ -122,9 +168,21 @@ class StorageService {
   }
 
   // -----------------------------
-  // 🧹 CLEAR ALL (for testing)
+  // 🧹 TESTING & RESET HELPERS
   // -----------------------------
 
+  /// Reset only tokens (current and lifetime)
+  static Future<void> resetTokens() async {
+    await saveTokens(0);
+    await saveTotalTokens(0);
+  }
+
+  /// Reset only points
+  static Future<void> resetPoints() async {
+    await savePoints(0);
+  }
+
+  /// Reset everything (for testing)
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
@@ -140,6 +198,7 @@ class StorageService {
     print('🔹 Total tokens ever: ${prefs.getInt(_totalTokensKey) ?? 0}');
     print('🔹 Points (lifetime): ${prefs.getInt(_pointsKey) ?? 0}');
     print('🔹 Last handled milestone: ${prefs.getInt(_lastMilestoneKey) ?? 0}');
+    print('🔹 Unlocked challenges: ${await getUnlockedChallenges()}');
     print('🔹 Knight position: X=${prefs.getDouble(_animatedXKey)}, '
         'Y=${prefs.getDouble(_animatedYKey)}, '
         'Size=${prefs.getDouble(_animatedSizeKey)}');
