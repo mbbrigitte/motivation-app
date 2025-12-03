@@ -1,9 +1,168 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'violin_tuner.dart';
 import 'knights_practice_timer.dart';
 
 class TuningQuestionScreen extends StatelessWidget {
   const TuningQuestionScreen({super.key});
+
+  Future<void> _requestMicrophoneAndNavigate(BuildContext context) async {
+    // Check current permission status
+    PermissionStatus status = await Permission.microphone.status;
+    
+    if (status.isGranted) {
+      // Permission already granted, go directly to tuner
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ViolinTuner()),
+        );
+      }
+      return;
+    }
+    
+    // Show a friendly message before requesting
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.blue[700],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Colors.white, width: 3),
+          ),
+          content: const Text(
+            'The tuner needs access to your microphone to hear your violin.',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _handleMicrophonePermission(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green[700],
+                foregroundColor: Colors.white,
+              ),
+              child: const Text(
+                'OK',
+                style: TextStyle(fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleMicrophonePermission(BuildContext context) async {
+    // Request the permission
+    PermissionStatus status = await Permission.microphone.request();
+    
+    if (!context.mounted) return;
+    
+    if (status.isGranted) {
+      // Permission granted! Go to tuner
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const ViolinTuner()),
+      );
+    } else if (status.isDenied) {
+      // Permission denied - show explanation
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.orange[700],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Colors.white, width: 3),
+          ),
+          title: const Text(
+            'Microphone Access Needed',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'The violin tuner needs microphone access to detect your violin\'s pitch. Please grant permission to use the tuner.',
+            style: TextStyle(color: Colors.white),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                // Try again
+                await _handleMicrophonePermission(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green[700],
+              ),
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
+      );
+    } else if (status.isPermanentlyDenied) {
+      // Permission permanently denied - direct to settings
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.red[700],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Colors.white, width: 3),
+          ),
+          title: const Text(
+            'Permission Required',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'Microphone permission is required for the tuner. Please enable it in your device settings.',
+            style: TextStyle(color: Colors.white),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await openAppSettings();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.red[700],
+              ),
+              child: const Text('Open Settings'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,13 +181,11 @@ class TuningQuestionScreen extends StatelessWidget {
               children: [
                 // --- Custom Image/Fallback Section ---
                 Container(
-                  constraints: BoxConstraints.loose(Size(w * 0.7, h * 0.4)), // Limits max size
+                  constraints: BoxConstraints.loose(Size(w * 0.7, h * 0.4)),
                   child: Image.asset(
-                    'assets/images/help_tuning.png', // Your Image Path
+                    'assets/images/help_tuning.png',
                     fit: BoxFit.contain,
-                    // Fallback Option (errorBuilder)
                     errorBuilder: (context, error, stackTrace) {
-                      // Fallback Text if image fails to load
                       return Text(
                         'Do you need help tuning?',
                         textAlign: TextAlign.center,
@@ -42,20 +199,13 @@ class TuningQuestionScreen extends StatelessWidget {
                   ),
                 ),
 
-                SizedBox(height: h * 0.05), // Adjusted spacing
+                SizedBox(height: h * 0.05),
 
-                // YES button (Logic remains unchanged)
+                // YES button - NOW WITH PERMISSION REQUEST
                 SizedBox(
                   width: w * 0.7,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ViolinTuner(),
-                        ),
-                      );
-                    },
+                    onPressed: () => _requestMicrophoneAndNavigate(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF228B22),
                       foregroundColor: Colors.white,
@@ -77,7 +227,7 @@ class TuningQuestionScreen extends StatelessWidget {
 
                 SizedBox(height: h * 0.025),
 
-                // NO button (Logic remains unchanged)
+                // NO button - unchanged
                 SizedBox(
                   width: w * 0.7,
                   child: ElevatedButton(
