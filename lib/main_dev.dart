@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/treasure_chest_page.dart';
-import 'screens/knight_advancer.dart';
+import 'screens/bach_challenge.dart';
 import 'services/storage_service.dart';
 
 void main() async {
@@ -21,30 +20,18 @@ Future<void> _resetStorageForTesting() async {
   await StorageService.clearKnightPosition();
 }
 
-//Future<void> _resetStorageForTesting() async {
-//  await StorageService.saveTokens(15);  // Set current tokens
-//  await StorageService.saveTotalTokens(15);  // Set total ever
-//  await StorageService.saveLastHandledMilestone(0);
-//  await StorageService.clearKnightPosition();
-//}
-
 class MyDevApp extends StatelessWidget {
   const MyDevApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Dev - Knight Adventure',
+      title: 'Dev - Bach Challenge',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.purple,
       ),
-      // Start with the Treasure Chest page
-      home: const TreasureChestPage(),
-      // Define routes for navigation
-      routes: {
-        '/treasure': (context) => const TreasureChestPage(),
-        '/knight': (context) => const KnightAdvancer(),
-      },
+      // Start directly with the Bach Challenge
+      home: const BachChallenge(isReplay: false),
     );
   }
 }

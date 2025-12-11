@@ -215,15 +215,15 @@ class _ViolinTunerState extends State<ViolinTuner>
                 const SizedBox(height: 40),
                 LayoutBuilder(
                   builder: (context, constraints) {
-                    final double gaugeSize = constraints.maxWidth * 0.3;
+                    final double gaugeSize = constraints.maxWidth * 0.7;
                     return SizedBox(
                       width: gaugeSize,
-                      height: gaugeSize,
+                      height: gaugeSize * 0.5,
                       child: _buildNeedleGauge(gaugeSize),
                     );
                   },
                 ),
-                const SizedBox(height: 50),
+                const SizedBox(height: 20),// 🎯 Reduced from 50 to 20
                 _buildDragonIndicator(),
                 const SizedBox(height: 40),
                 // 🎯 FIX #1: Made "In tune!" always take up space, just invisible when not in tune
@@ -241,7 +241,7 @@ class _ViolinTunerState extends State<ViolinTuner>
                     ),
                   ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 30),
                 // Continue to Practice button (no longer moves)
                 ElevatedButton(
                   onPressed: () {
@@ -294,11 +294,13 @@ class _ViolinTunerState extends State<ViolinTuner>
   // == YOUR ORIGINAL VISUAL COMPONENTS BELOW - UNMODIFIED ==
 
   // NEEDLE GAUGE (RESPONSIVE)
-  Widget _buildNeedleGauge(double size) {
-    final double centerPinSize = size * 0.07;
-    final double needleThickness = size * 0.018;
+ Widget _buildNeedleGauge(double size) {
+  final double centerPinSize = size * 0.07;
+  final double needleThickness = size * 0.018;
 
-    return Stack(
+  return ClipPath(
+    clipper: HalfCircleClipper(), // 🎯 Custom clipper to show only top half
+    child: Stack(
       alignment: Alignment.center,
       children: [
         Container(
@@ -321,7 +323,7 @@ class _ViolinTunerState extends State<ViolinTuner>
             width: needleThickness,
             height: size * 0.45,
             decoration: BoxDecoration(
-              color: Colors.amber,
+              color: const Color.fromARGB(255, 117, 184, 9),
               borderRadius: BorderRadius.circular(1),
             ),
           ),
@@ -334,10 +336,10 @@ class _ViolinTunerState extends State<ViolinTuner>
             return Transform.rotate(
               angle: (needleController.value - 0.5) * pi,
               child: Container(
-                width: needleThickness * 1.3,
+                width: needleThickness * 1.93,
                 height: size * 0.45,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Colors.black,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -356,9 +358,10 @@ class _ViolinTunerState extends State<ViolinTuner>
           ),
         ),
       ],
-    );
-  }
-
+    ),
+  );
+}
+  
   // DRAGON INDICATOR
   Widget _buildDragonIndicator() {
     double normalized = (detuneAmount + 50) / 100;
@@ -428,14 +431,14 @@ class GaugePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - (size.width * 0.05);
 
-    paint.color = Colors.blue;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      pi,
-      pi / 3,
-      false,
-      paint,
-    );
+  //  paint.color = Colors.blue;
+   // canvas.drawArc(
+  //    Rect.fromCircle(center: center, radius: radius),
+  //    pi,
+  //    pi / 3,
+  //    false,
+  //    paint,
+  //  );
 
     paint.color = Colors.green;
     canvas.drawArc(
@@ -446,14 +449,14 @@ class GaugePainter extends CustomPainter {
       paint,
     );
 
-    paint.color = Colors.red;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      pi + 2 * pi / 3,
-      pi / 3,
-      false,
-      paint,
-    );
+   // paint.color = Colors.red;
+   // canvas.drawArc(
+   //   Rect.fromCircle(center: center, radius: radius),
+   //   pi + 2 * pi / 3,
+   //   pi / 3,
+   //   false,
+   //   paint,
+   // );
 
     final linePaint = Paint()
       ..color = Colors.amber
@@ -464,7 +467,7 @@ class GaugePainter extends CustomPainter {
       linePaint,
     );
 
-    final double fontSize = size.width * 0.05;
+    final double fontSize = size.width * 0.06;
     final textStyle = TextStyle(fontSize: fontSize, color: Colors.white);
 
     TextPainter(
@@ -472,16 +475,29 @@ class GaugePainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )
       ..layout()
-      ..paint(canvas, Offset(center.dx - (size.width * 0.3), center.dy - (size.height * 0.3)));
+      ..paint(canvas, Offset(center.dx - (size.width * 0.4), center.dy - (size.height * 0.3)));
 
     TextPainter(
       text: TextSpan(text: 'HIGH', style: textStyle),
       textDirection: TextDirection.ltr,
     )
       ..layout()
-      ..paint(canvas, Offset(center.dx + (size.width * 0.15), center.dy - (size.height * 0.3)));
+      ..paint(canvas, Offset(center.dx + (size.width * 0.27), center.dy - (size.height * 0.3)));
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class HalfCircleClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    // Create a rectangle that covers only the top half
+    path.addRect(Rect.fromLTWH(0, 0, size.width, size.height / 2));
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

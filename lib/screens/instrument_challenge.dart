@@ -50,12 +50,12 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
   Map<String, bool> labelPlacements = {};
 
   final List<ViolinLabel> violinLabels = [
-    ViolinLabel(name: 'Scroll', topPercent: 0.12, isLeft: false),
-    ViolinLabel(name: 'Tuning Pegs', topPercent: 0.19, isLeft: true),
-    ViolinLabel(name: 'Fingerboard', topPercent: 0.38, isLeft: false),
-    ViolinLabel(name: 'Strings', topPercent: 0.52, isLeft: true),
+    ViolinLabel(name: 'Scroll', topPercent: 0.08, isLeft: false),
+    ViolinLabel(name: 'Tuning Pegs', topPercent: 0.17, isLeft: true),
+    ViolinLabel(name: 'Fingerboard', topPercent: 0.34, isLeft: false),
+    ViolinLabel(name: 'Strings', topPercent: 0.48, isLeft: true),
     ViolinLabel(name: 'Body', topPercent: 0.68, isLeft: false),
-    ViolinLabel(name: 'Bridge', topPercent: 0.74, isLeft: true),
+    ViolinLabel(name: 'Bridge', topPercent: 0.70, isLeft: true),
   ];
 
   @override
@@ -147,73 +147,54 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              if (!widget.isReplay) ...[
-                const SizedBox(height: 20),
-                const Text(
-                  'Do you want an extra challenge?',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.center,
+              const SizedBox(height: 20),
+              const Text(
+                'Do you want an extra challenge?',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
-              ],
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
-          actions: widget.isReplay
-              ? [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).pop(); // Go back to challenges list
-                    },
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.green[900],
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    ),
-                    child: const Text(
-                      'Done',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                  ),
-                ]
-              : [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => const PracticeFinished()),
-                      );
-                    },
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.red[700],
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    ),
-                    child: const Text(
-                      'No',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      setState(() {
-                        showLabelLearning = true;
-                        _buttonPressed = false;
-                      });
-                    },
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.green[900],
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    ),
-                    child: const Text(
-                      'Yes!',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                  ),
-                ],
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PracticeFinished()),
+                );
+              },
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              child: const Text(
+                'No',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() {
+                  showLabelLearning = true;
+                  _buttonPressed = false;
+                });
+              },
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.green[900],
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              child: const Text(
+                'Yes!',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -255,14 +236,10 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        if (widget.isReplay) {
-          Navigator.of(context).pop(); // Go back to challenges list
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const PracticeFinished()),
-          );
-        }
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const PracticeFinished()),
+        );
       }
     }
   }
@@ -280,6 +257,65 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
       _currentTokens = updatedTokens;
     });
   }
+
+  // Helper method to get line length for each label
+  double _getLineLength(String labelName) {
+    switch (labelName) {
+      case 'Scroll':
+        return 100.0; // Much longer
+      case 'Tuning Pegs':
+        return 95.0; // Much longer
+      case 'Fingerboard':
+        return 95.0; // Much longer
+      case 'Strings':
+        return 90.0; // Perfect - no change
+      case 'Body':
+        return 85.0; // Longer
+      case 'Bridge':
+        return 85.0; // Perfect - no change
+      default:
+        return 60.0;
+    }
+  }
+
+  // Helper method to get label offset (move closer to center)
+  double _getLabelOffset(String labelName) {
+    switch (labelName) {
+      case 'Scroll':
+        return 90.0; // Move more left towards center (30 + 30)
+      case 'Fingerboard':
+        return 120.0; // Move more left towards center (30 + 30)
+      case 'Body':
+        return 60.0; // Move more left towards center (30 + 30)
+      default:
+        return 0.0; // No offset
+    }
+  }
+
+  // Helper method to get left-side label offset (move towards center)
+  double _getLeftLabelOffset(String labelName) {
+    switch (labelName) {
+      case 'Strings':
+        return 11.0; // Move right towards center (negative = move right)
+      default:
+        return 0.0; // No offset
+    }
+  }
+
+  // Helper method to get vertical offset adjustment
+  double _getVerticalOffset(String labelName) {
+    switch (labelName) {
+      case 'Bridge':
+        return 5.0; // Move down
+       case 'Fingerboard':
+        return -50.0; // Move up
+        case 'Scroll':
+        return -5.0; // Move up
+    default:
+        return 0.0; // No offset
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -415,17 +451,24 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
 
                             ...violinLabels.map((label) {
                               final labelTop = violinHeight * label.topPercent;
-                              final labelX = label.isLeft ? -130.0 : violinWidth + 10;
+                              final lineLength = _getLineLength(label.name);
+                              // Adjust label position based on which label it is
+                              final labelOffset = _getLabelOffset(label.name);
+                              final leftLabelOffset = _getLeftLabelOffset(label.name);
+                              final verticalOffset = _getVerticalOffset(label.name);
+                              final labelX = label.isLeft 
+                                  ? -130.0 + leftLabelOffset 
+                                  : violinWidth + 10 - labelOffset;
 
                               return Positioned(
                                 left: labelX,
-                                top: labelTop - 12,
+                                top: labelTop - 12 + verticalOffset,
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     if (!label.isLeft)
                                       CustomPaint(
-                                        size: const Size(10, 24),
+                                        size: Size(lineLength, 24),
                                         painter: _LinePainter(),
                                       ),
                                     Container(
@@ -448,7 +491,7 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
                                     ),
                                     if (label.isLeft)
                                       CustomPaint(
-                                        size: const Size(10, 24),
+                                        size: Size(lineLength, 24),
                                         painter: _LinePainter(),
                                       ),
                                   ],
@@ -619,23 +662,28 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
                         ...violinLabels.map((label) {
                           final centerX = (screenWidth * 0.9) / 2;
                           final labelTop = violinTopOffset + (violinHeight * label.topPercent);
+                          final lineLength = _getLineLength(label.name);
+                          final labelOffset = _getLabelOffset(label.name);
+                          final leftLabelOffset = _getLeftLabelOffset(label.name);
+                          final verticalOffset = _getVerticalOffset(label.name);
                           
+                          // Keep labels closer - don't subtract/add lineLength
                           final double targetLeft;
                           if (label.isLeft) {
-                            targetLeft = centerX - (violinWidth / 2) - 130;
+                            targetLeft = centerX - (violinWidth / 2) - 130 + leftLabelOffset;
                           } else {
-                            targetLeft = centerX + (violinWidth / 2) + 10;
+                            targetLeft = centerX + (violinWidth / 2) + 10 - labelOffset;
                           }
 
                           return Positioned(
                             left: targetLeft,
-                            top: labelTop - 15,
+                            top: labelTop - 15 + verticalOffset,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 if (!label.isLeft)
                                   CustomPaint(
-                                    size: const Size(10, 30),
+                                    size: Size(lineLength, 30),
                                     painter: _LinePainter(),
                                   ),
                                 Container(
@@ -666,7 +714,7 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
                                 ),
                                 if (label.isLeft)
                                   CustomPaint(
-                                    size: const Size(10, 30),
+                                    size: Size(lineLength, 30),
                                     painter: _LinePainter(),
                                   ),
                               ],
@@ -776,19 +824,24 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
                         ...violinLabels.map((label) {
                           final centerX = (screenWidth * 0.9) / 2;
                           final labelTop = violinTopOffset + (violinHeight * label.topPercent);
+                          final lineLength = _getLineLength(label.name);
+                          final labelOffset = _getLabelOffset(label.name);
+                          final leftLabelOffset = _getLeftLabelOffset(label.name);
+                          final verticalOffset = _getVerticalOffset(label.name);
                           
+                          // Keep labels closer - don't subtract/add lineLength
                           final double targetLeft;
                           if (label.isLeft) {
-                            targetLeft = centerX - (violinWidth / 2) - 130;
+                            targetLeft = centerX - (violinWidth / 2) - 130 + leftLabelOffset;
                           } else {
-                            targetLeft = centerX + (violinWidth / 2) + 10;
+                            targetLeft = centerX + (violinWidth / 2) + 10 - labelOffset;
                           }
 
                           final isPlaced = labelPlacements[label.name] ?? false;
 
                           return Positioned(
                             left: targetLeft,
-                            top: labelTop - 15,
+                            top: labelTop - 15 + verticalOffset,
                             child: DragTarget<String>(
                               onWillAccept: (data) {
                                 print('onWillAccept: $data for ${label.name}, result: ${data == label.name}');
@@ -809,7 +862,7 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
                                   children: [
                                     if (!label.isLeft)
                                       CustomPaint(
-                                        size: const Size(10, 30),
+                                        size: Size(lineLength, 30),
                                         painter: _LinePainter(),
                                       ),
                                     Container(
@@ -852,7 +905,7 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
                                     ),
                                     if (label.isLeft)
                                       CustomPaint(
-                                        size: const Size(10, 30),
+                                        size: Size(lineLength, 30),
                                         painter: _LinePainter(),
                                       ),
                                   ],

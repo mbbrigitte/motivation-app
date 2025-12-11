@@ -1,10 +1,49 @@
+// ========== practice_finished.dart ==========
 import 'package:flutter/material.dart';
 import 'package:flutter_testapplication/screens/quest_selection_screen.dart';
+import 'package:video_player/video_player.dart';
 import 'challenges_list.dart';
 import 'parent_info.dart';
+import 'exit_screen.dart';
 
-class PracticeFinished extends StatelessWidget {
+class PracticeFinished extends StatefulWidget {
   const PracticeFinished({super.key});
+
+  @override
+  State<PracticeFinished> createState() => _PracticeFinishedState();
+}
+
+class _PracticeFinishedState extends State<PracticeFinished> {
+  VideoPlayerController? _controller;
+
+  void _playThankYouVideo() async {
+    _controller = VideoPlayerController.asset('assets/videos/Thanks.mp4');
+    
+    try {
+      await _controller!.initialize();
+      await _controller!.play();
+      
+      // When audio finishes, go to exit screen
+      _controller!.addListener(() {
+        if (_controller!.value.position >= _controller!.value.duration) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ExitScreen(),
+            ),
+          );
+        }
+      });
+    } catch (e) {
+      print('Error initializing video: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,100 +103,93 @@ class PracticeFinished extends StatelessWidget {
               
               const SizedBox(height: 60),
               
-              // "Practice more" button
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const QuestSelectionScreen(),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red[700],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 40),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  elevation: 5,
-                ),
-                child: const Text(
-                  '⚔️ I want to practice more!',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Challenges button - NEW!
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ChallengesList(),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple[700],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 40),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  elevation: 5,
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.psychology, size: 28),
-                    SizedBox(width: 12),
-                    Text(
-                      'Ear Training &\nMore Challenges',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+              // Prompt text above buttons
+              Text(
+                'Next, I want to...',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red[900],
+                  shadows: [
+                    Shadow(
+                      offset: const Offset(1, 1),
+                      blurRadius: 2,
+                      color: Colors.black.withOpacity(0.2),
                     ),
                   ],
                 ),
               ),
               
-              const SizedBox(height: 20),
+              const SizedBox(height: 30),
               
-              // "See you later" button
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/',
-                    (route) => false,
+              // Three buttons in a row - responsive to screen size
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  // Calculate button size based on screen width
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final buttonSize = (screenWidth * 0.20).clamp(60.0, 100.0);
+                  
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // "Practice more" button
+                      Expanded(
+                        child: _buildCustomButton(
+                          context: context,
+                          imagePath: 'assets/images/Play_more_button.png',
+                          label: '...practice more',
+                          buttonSize: buttonSize,
+                          tooltip: 'Back to quest selection',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const QuestSelectionScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      
+                      const SizedBox(width: 8),
+                      
+                      // Ear training & challenges button
+                      Expanded(
+                        child: _buildCustomButton(
+                          context: context,
+                          imagePath: 'assets/images/Eartraining_and_Game_button.png',
+                          label: '...do more challenges\nand ear training',
+                          buttonSize: buttonSize,
+                          tooltip: 'To the challenges',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ChallengesList(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      
+                      const SizedBox(width: 8),
+                      
+                      // "See you later" button - plays audio only
+                      Expanded(
+                        child: _buildCustomButton(
+                          context: context,
+                          imagePath: 'assets/images/Thanks_bye_button.png',
+                          label: '...nothing, I am done,\nthank you!',
+                          buttonSize: buttonSize,
+                          tooltip: 'Goodbye',
+                          onPressed: _playThankYouVideo,
+                        ),
+                      ),
+                    ],
                   );
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[700],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 40),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  elevation: 5,
-                ),
-                child: const Text(
-                  '👋 I enjoyed practice today!\nSee you another time!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
               ),
             ],
           ),
@@ -165,4 +197,59 @@ class PracticeFinished extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildCustomButton({
+    required BuildContext context,
+    required String imagePath,
+    required String label,
+    required double buttonSize,
+    required VoidCallback onPressed,
+    String? tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip ?? '',
+      child: GestureDetector(
+        onTap: onPressed,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Custom image button
+            Container(
+              width: buttonSize,
+              height: buttonSize,
+              child: Image.asset(
+                imagePath,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.high,
+              ),
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Label text below the button
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: (buttonSize * 0.15).clamp(12.0, 16.0),
+                fontWeight: FontWeight.bold,
+                color: Colors.red[900],
+                shadows: [
+                  Shadow(
+                    offset: const Offset(1, 1),
+                    blurRadius: 2,
+                    color: Colors.black.withOpacity(0.2),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+// Video screen that plays Thanks.mp4
+// This is now removed - video plays in place on the main screen
+

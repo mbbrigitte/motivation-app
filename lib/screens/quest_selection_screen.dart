@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'tuning_question_screen.dart';
+import 'parent_info.dart';
 import '../widgets/sword_icon.dart';
 
 class QuestSelectionScreen extends StatefulWidget {
@@ -137,6 +138,32 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen> {
                   child: const Text(
                     'Start Practice',
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                ),
+
+                const SizedBox(height: 30),
+
+                // -------------------------
+                //   PARENT INFO BUTTON
+                // -------------------------
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFB22222),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ParentInfo(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.info_outline, size: 28),
+                  label: const Text(
+                    'Parent Info',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
