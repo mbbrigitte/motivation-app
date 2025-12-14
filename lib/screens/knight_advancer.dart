@@ -373,7 +373,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
                   style: TextStyle(fontSize: screenWidth * 0.035),
                 ),
               ),
-            ),
+            ), 
 
           // Centered info overlay - made responsive
           Positioned(
