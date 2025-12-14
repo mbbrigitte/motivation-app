@@ -1,6 +1,3 @@
-// ========== exit_screen.dart ==========
-// Create this as a new file: lib/screens/exit_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -25,6 +22,32 @@ class _ExitScreenState extends State<ExitScreen> {
   }
 
   Future<void> _initializeMedia() async {
+    // Initialize and configure audio player for Android compatibility
+    _audioPlayer = AudioPlayer();
+    
+    try {
+      // CRITICAL: Use AudioFocus.none to NOT steal focus from video
+      await _audioPlayer.setAudioContext(
+        AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: [
+              AVAudioSessionOptions.mixWithOthers,
+            ],
+          ),
+          android: AudioContextAndroid(
+            isSpeakerphoneOn: false,
+            stayAwake: true,
+            contentType: AndroidContentType.music,
+            usageType: AndroidUsageType.media,
+            audioFocus: AndroidAudioFocus.none, // Don't steal focus from video!
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Error configuring audio player: $e');
+    }
+    
     // Initialize video
     _videoController = VideoPlayerController.asset('assets/videos/Happy_dance.mp4');
     await _videoController.initialize();
@@ -32,27 +55,13 @@ class _ExitScreenState extends State<ExitScreen> {
     // Add listener to pause video 0.5 seconds before the end
     _videoController.addListener(_videoListener);
     
-    // Initialize audio
-    _audioPlayer = AudioPlayer();
-    await _audioPlayer.setAudioContext(
-      AudioContext(
-        iOS: AudioContextIOS(
-          category: AVAudioSessionCategory.playback,
-          options: [
-            AVAudioSessionOptions.mixWithOthers,
-          ],
-        ),
-        android: AudioContextAndroid(
-          isSpeakerphoneOn: false,
-          stayAwake: true,
-          contentType: AndroidContentType.music,
-          usageType: AndroidUsageType.media,
-          audioFocus: AndroidAudioFocus.none,
-        ),
-      ),
-    );    
-    // Start both video and audio
+    // Start video first
     await _videoController.play();
+    
+    // CRITICAL: Add delay before starting audio to prevent Android media session conflict
+    await Future.delayed(const Duration(milliseconds: 300));
+    
+    // Start audio after video has established its audio session
     await _audioPlayer.play(AssetSource('audio/ENo_5.mp3'));
     
     setState(() {
