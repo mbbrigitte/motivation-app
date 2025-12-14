@@ -34,7 +34,23 @@ class _ExitScreenState extends State<ExitScreen> {
     
     // Initialize audio
     _audioPlayer = AudioPlayer();
-    
+    await _audioPlayer.setAudioContext(
+      AudioContext(
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.playback,
+          options: [
+            AVAudioSessionOptions.mixWithOthers,
+          ],
+        ),
+        android: AudioContextAndroid(
+          isSpeakerphoneOn: false,
+          stayAwake: true,
+          contentType: AndroidContentType.music,
+          usageType: AndroidUsageType.media,
+          audioFocus: AndroidAudioFocus.none,
+        ),
+      ),
+    );    
     // Start both video and audio
     await _videoController.play();
     await _audioPlayer.play(AssetSource('audio/ENo_5.mp3'));
