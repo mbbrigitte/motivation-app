@@ -12,6 +12,7 @@ class StorageService {
   static const String _animatedXKey = 'animated_x';
   static const String _animatedYKey = 'animated_y';
   static const String _animatedSizeKey = 'animated_size';
+  static const String _lastAnimatedPointKey = 'last_animated_point';
 
   // -----------------------------
   // 🪙 TOKENS (redeemable)
@@ -160,11 +161,28 @@ class StorageService {
     return prefs.getDouble(_animatedSizeKey);
   }
 
-  /// Clear knight position (used when tokens are redeemed)
+  // NEW: Save and load the last animated point (0-25)
+  static Future<void> saveLastAnimatedPoint(int point) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_lastAnimatedPointKey, point);
+  }
+
+  static Future<int?> loadLastAnimatedPoint() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_lastAnimatedPointKey);
+  }
+
+  static Future<void> clearLastAnimatedPoint() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_lastAnimatedPointKey);
+  }
+
+  /// Clear knight position (used when milestones are reached)
   static Future<void> clearKnightPosition() async {
     await saveAnimatedX(null);
     await saveAnimatedY(null);
     await saveAnimatedSize(null);
+    await clearLastAnimatedPoint();
   }
 
   // -----------------------------
@@ -202,5 +220,6 @@ class StorageService {
     print('🔹 Knight position: X=${prefs.getDouble(_animatedXKey)}, '
         'Y=${prefs.getDouble(_animatedYKey)}, '
         'Size=${prefs.getDouble(_animatedSizeKey)}');
+    print('🔹 Last animated point: ${prefs.getInt(_lastAnimatedPointKey)}');
   }
 }

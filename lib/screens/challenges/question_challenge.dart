@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import '../services/storage_service.dart';
-import 'practice_finished.dart';
+//import '../../services/storage_service.dart';
+import 'package:flutter_testapplication/services/storage_service.dart';
+import '../practice_finished.dart';
 
-class MemoryChallenge extends StatefulWidget {
+class QuestionChallenge extends StatefulWidget {
   final bool isReplay;
   
-  const MemoryChallenge({super.key, this.isReplay = false});
+  const QuestionChallenge({super.key, this.isReplay = false});
 
   @override
-  State<MemoryChallenge> createState() => _MemoryChallengeState();
+  State<QuestionChallenge> createState() => _QuestionChallengeState();
 }
 
-class _MemoryChallengeState extends State<MemoryChallenge> with TickerProviderStateMixin {
+class _QuestionChallengeState extends State<QuestionChallenge> with TickerProviderStateMixin {
   int _currentTokens = 0;
   List<MemoryCard> _cards = [];
   List<int> _flippedIndices = [];
@@ -44,7 +45,7 @@ class _MemoryChallengeState extends State<MemoryChallenge> with TickerProviderSt
     
     // Unlock this challenge when first accessed (not in replay mode)
     if (!widget.isReplay) {
-      StorageService.unlockChallenge('memory_challenge');
+      StorageService.unlockChallenge('question_challenge');
     }
   }
   
@@ -63,16 +64,16 @@ class _MemoryChallengeState extends State<MemoryChallenge> with TickerProviderSt
 
   void _initializeCards() {
     List<MemoryCard> cards = [
-      MemoryCard(id: 0, content: 'Allegro', type: CardType.text, pairId: 0),
-      MemoryCard(id: 1, content: 'Happy', type: CardType.text, pairId: 0),
-      MemoryCard(id: 2, content: 'Staccato', type: CardType.text, pairId: 1),
-      MemoryCard(id: 3, content: 'Detached', type: CardType.text, pairId: 1),
-      MemoryCard(id: 4, content: '🎻', type: CardType.emoji, pairId: 2),
-      MemoryCard(id: 5, content: 'Violin', type: CardType.text, pairId: 2),
-      MemoryCard(id: 6, content: '♩', type: CardType.emoji, pairId: 3),
-      MemoryCard(id: 7, content: 'Quarter note', type: CardType.text, pairId: 3),
-      MemoryCard(id: 8, content: 'Pepperoni pizza rhythm', type: CardType.text, pairId: 4),
-      MemoryCard(id: 9, content: 'Twinkle', type: CardType.text, pairId: 4),
+      MemoryCard(id: 0, content: 'Question', type: CardType.text, pairId: 0),
+      MemoryCard(id: 1, content: 'Answer', type: CardType.text, pairId: 0),
+      MemoryCard(id: 2, content: 'Mystery', type: CardType.text, pairId: 1),
+      MemoryCard(id: 3, content: 'Solution', type: CardType.text, pairId: 1),
+      MemoryCard(id: 4, content: '❓', type: CardType.emoji, pairId: 2),
+      MemoryCard(id: 5, content: '❗', type: CardType.emoji, pairId: 2),
+      MemoryCard(id: 6, content: 'Puzzle', type: CardType.text, pairId: 3),
+      MemoryCard(id: 7, content: 'Solved', type: CardType.text, pairId: 3),
+      MemoryCard(id: 8, content: 'Think', type: CardType.text, pairId: 4),
+      MemoryCard(id: 9, content: 'Know', type: CardType.text, pairId: 4),
     ];
     
     cards.shuffle();
@@ -154,8 +155,8 @@ class _MemoryChallengeState extends State<MemoryChallenge> with TickerProviderSt
           ),
           content: Text(
             widget.isReplay
-                ? 'Excellent memory!\nYou found all the pairs!\n\nTime: $_elapsedTime'
-                : 'Excellent memory!\nYou found all the pairs!\n\nTime: $_elapsedTime\n\nYou get one token!\nYou now have a total of $_currentTokens tokens!',
+                ? 'You solved all the mysteries!\nYou found all the pairs!\n\nTime: $_elapsedTime'
+                : 'You solved all the mysteries!\nYou found all the pairs!\n\nTime: $_elapsedTime\n\nYou get one token!\nYou now have a total of $_currentTokens tokens!',
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -208,7 +209,7 @@ class _MemoryChallengeState extends State<MemoryChallenge> with TickerProviderSt
     return Scaffold(
       backgroundColor: const Color(0xFFDAA520),
       appBar: AppBar(
-        title: const Text('The Memory Challenge'),
+        title: const Text('The Question Mark Challenge'),
         backgroundColor: Colors.red[900],
         centerTitle: true,
       ),
@@ -219,7 +220,7 @@ class _MemoryChallengeState extends State<MemoryChallenge> with TickerProviderSt
             children: [
               const SizedBox(height: 20),
               const Text(
-                'Match the musical pairs!',
+                'Match the questions with answers!',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,

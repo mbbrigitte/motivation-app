@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/bach_challenge.dart';
+import 'screens/challenges/bach_challenge.dart';
 import 'services/storage_service.dart';
 
 void main() async {

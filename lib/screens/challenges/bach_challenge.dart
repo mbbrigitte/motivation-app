@@ -4,8 +4,9 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:typed_data';
 import 'dart:async';
-import '../services/storage_service.dart';
-import 'practice_finished.dart';
+//import '../../services/storage_service.dart';
+import 'package:flutter_testapplication/services/storage_service.dart';
+import '../practice_finished.dart';
 
 class BachChallenge extends StatefulWidget {
   final bool isReplay;

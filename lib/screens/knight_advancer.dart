@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'dart:convert';
+import 'dart:async';
 import '../services/storage_service.dart';
-import 'guard_challenge.dart';
-import 'instrument_challenge.dart';
-import 'wishing_well_challenge.dart';
+import 'challenges/instrument_challenge.dart';
+import 'challenges/posture_challenge.dart';
+import 'challenges/bach_challenge.dart';
+import 'challenges/animal_challenge.dart';
+import 'challenges/listening_challenge.dart';
+import 'challenges/question_challenge.dart';
+import 'challenges/notes_challenge.dart';
+import 'challenges/guard_challenge.dart';
+import 'challenges/memory_challenge.dart';
+import 'challenges/opengates_challenge.dart';
 import 'practice_finished.dart';
 
 class KnightAdvancer extends StatefulWidget {
@@ -14,34 +24,23 @@ class KnightAdvancer extends StatefulWidget {
 
 class _KnightAdvancerState extends State<KnightAdvancer>
     with SingleTickerProviderStateMixin {
-  int points = 0; // Changed from tokensCollected
-  int lastHandledMilestone = 0; // NEW: track the last milestone we handled
+  int points = 0;
+  int lastHandledMilestone = 0;
   bool isLoading = true;
+  Map<String, dynamic> pathsData = {};
 
   // Animation
   late AnimationController _animationController;
   late Animation<double> _positionAnimation;
 
-  // Use percentages instead of absolute pixels
-  double animatedXPercent = 0.558;
-  double animatedYPercent = 0.998;
-  double animatedSizePercent = 0.45; // Increased for better visibility
+  double animatedXPercent = 0.5;
+  double animatedYPercent = 0.9;
+  double animatedSizePercent = 0.08;
 
-  // Knight positions as percentages of screen dimensions
-  // Size values increased for better visibility on small screens
-  final Map<String, Map<String, double>> positions = {
-    '1-3': {'x': 0.458, 'y': 0.998, 'size': 0.5},
-    '4-6': {'x': 0.321, 'y': 0.908, 'size': 0.42},
-    '7-9': {'x': 0.409, 'y': 0.739, 'size': 0.35},
-    '10-12': {'x': 0.390, 'y': 0.710, 'size': 0.32},
-    '13-15': {'x': 0.376, 'y': 0.691, 'size': 0.30},
-    '16-18': {'x': 0.350, 'y': 0.645, 'size': 0.27},
-    '19-21': {'x': 0.389, 'y': 0.580, 'size': 0.25},
-    '22-24': {'x': 0.368, 'y': 0.576, 'size': 0.23},
-    '25': {'x': 0.347, 'y': 0.508, 'size': 0.22},
-  };
+  // Track the last point we animated to (within the current 25-point journey)
+  int lastAnimatedPointInJourney = 0;
 
-  // Speech bubbles
+  // Speech bubbles - same for all backgrounds
   final Map<String, String> speechBubbles = {
     '1-3': "Great start into this new challenge!",
     '4-6': "I'm making progress!",
@@ -54,21 +53,35 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     '25': "You have reached your destination! Well done! Are you ready for an extra challenge?",
   };
 
+  // Background order
+  final List<String> backgroundOrder = [
+    'instrument_cart',
+    'violinist',
+    'bach',
+    'animal',
+    'bird',
+    'questionmark',
+    'music',
+    'guard',
+    'castle',
+    'castle_gates',
+  ];
+
   @override
   void initState() {
     super.initState();
 
     _animationController = AnimationController(
-      duration: const Duration(seconds: 4),
+      duration: const Duration(milliseconds: 900), // 2 seconds per point was really smooth but somewhat slow
       vsync: this,
     );
 
     _positionAnimation = CurvedAnimation(
       parent: _animationController,
-      curve: Curves.easeInOut,
+      curve: Curves.fastOutSlowIn,
     );
 
-    _loadAndSetupJourney();
+    _loadPathsAndSetupJourney();
   }
 
   @override
@@ -77,129 +90,71 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     super.dispose();
   }
 
-  String _getDestinationImage() {
-    // Show destination based on LAST HANDLED milestone from storage
-    // This ensures we show the correct destination even after crossing a milestone
-    int journey = lastHandledMilestone ~/ 25;
-    
-    switch (journey) {
-      case 0:
-        return 'assets/images/Instrument_wagon.png';
-      case 1:
-        return 'assets/images/Wishing_well.png';
-      case 2:
-        return 'assets/images/Treasure_chest_with_dragon.png';
-      case 3:
-        return 'assets/images/Guard.png';
-      case 4:
-        return 'assets/images/Beethoven_house.png';
-      case 5:
-        return 'assets/images/JS_Bach_on_Bench_paint.png';
-      case 6:
-        return 'assets/images/Younger_house.png';
-      case 7:
-        return 'assets/images/JS_Bach_on_Bench_paint.png';
-      case 8:
-        return 'assets/images/Wishing_well.png';
-      case 9:
-        return 'assets/images/Treasure_chest_with_dragon.png';
-      default:
-        int cycleIndex = journey % 3;
-        if (cycleIndex == 0) return 'assets/images/Instrument_wagon.png';
-        if (cycleIndex == 1) return 'assets/images/Guard.png';
-        return 'assets/images/Treasure_chest_with_dragon.png';
+  Future<void> _loadPathsAndSetupJourney() async {
+    // Load the JSON file
+    try {
+      final String jsonString = await rootBundle.loadString('data/knight_paths.json');
+      pathsData = json.decode(jsonString);
+    } catch (e) {
+      print('Error loading knight paths: $e');
+      // Fallback to empty data
+      pathsData = {'backgrounds': {}};
     }
-  }
 
-  String _getBackgroundImage() {
-    // Alternates between day and night based on milestone
-    int journey = lastHandledMilestone ~/ 25;
-    return journey % 2 == 0 ? 'assets/images/day.png' : 'assets/images/night.png';
-  }
-
-  String _getJourneyTitle() {
-    // Show title based on LAST HANDLED milestone from storage
-    int journey = lastHandledMilestone ~/ 25;
+    // Load current progress
+    points = await StorageService.loadPoints();
+    lastHandledMilestone = await StorageService.loadLastHandledMilestone();
     
-    switch (journey) {
-      case 0:
-        return 'Journey to the Instrument Wagon';
-      case 1:
-        return 'The Wishing Well';
-      case 2:
-        return 'Dragon\'s Treasure';
-      case 3:
-        return 'Journey to the Guard';
-      case 4:
-        return 'Beethoven\'s House';
-      case 5:
-        return 'Bach\'s Bench';
-      case 6:
-        return 'Younger House';
-      default:
-        return 'Epic Journey ${journey + 1}';
-    }
-  }
-
-  Future<void> _loadAndSetupJourney() async {
-    points = await StorageService.loadPoints(); // Load points instead of tokens
-
-    lastHandledMilestone = await StorageService.loadLastHandledMilestone(); // Load this first!
     int currentMilestone = (points ~/ 25) * 25;
     
     // Check if we just crossed a milestone
     bool justCrossedMilestone = points >= 25 && 
                                 currentMilestone > lastHandledMilestone;
 
-    // Determine display points
+    // Determine display points (position within current journey)
     int displayPoints;
     if (justCrossedMilestone) {
-      // Just crossed milestone - stop at position 25
-      displayPoints = 25;
+      displayPoints = 25; // Stop at destination
     } else {
-      // Normal journey - show position within current 25-point journey
       displayPoints = points % 25;
       if (displayPoints == 0 && points > 0) {
-        displayPoints = 0;
+        displayPoints = 0; // Starting new journey
       }
     }
 
-    // Load knight's last saved position (starting point for animation)
-    double? savedX = await StorageService.loadAnimatedX();
-    double? savedY = await StorageService.loadAnimatedY();
-    double? savedSize = await StorageService.loadAnimatedSize();
-
-    if (savedX != null && savedY != null && savedSize != null) {
-      // Check if values are absolute (>10) or percentage (<2)
-      if (savedX > 10) {
-        // Old absolute values - convert to percentages
-        animatedXPercent = savedX / 1200;
-        animatedYPercent = savedY / 1200;
-        animatedSizePercent = savedSize / 1200;
-      } else {
-        // Already percentages
-        animatedXPercent = savedX;
-        animatedYPercent = savedY;
-        animatedSizePercent = savedSize;
+    // Try to load the last point we saved
+    int? savedLastPoint = await StorageService.loadLastAnimatedPoint();
+    
+    if (savedLastPoint != null && savedLastPoint <= displayPoints) {
+      // We have a saved position - start from there
+      lastAnimatedPointInJourney = savedLastPoint;
+      Map<String, double>? savedPos = _getPositionForPoints(savedLastPoint);
+      if (savedPos != null) {
+        animatedXPercent = savedPos['x']!;
+        animatedYPercent = savedPos['y']!;
+        animatedSizePercent = savedPos['size']!;
       }
     } else {
-      // No saved position - use default starting position
-      Map<String, double> startPos = _getPositionForPoints(displayPoints);
-      animatedXPercent = startPos['x']!;
-      animatedYPercent = startPos['y']!;
-      animatedSizePercent = startPos['size']!;
+      // No saved position or it's invalid - start from beginning
+      lastAnimatedPointInJourney = 0;
+      Map<String, double>? startPos = _getPositionForPoints(0);
+      if (startPos != null) {
+        animatedXPercent = startPos['x']!;
+        animatedYPercent = startPos['y']!;
+        animatedSizePercent = startPos['size']!;
+      }
     }
 
     setState(() {
       isLoading = false;
     });
 
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 30));
 
-    // Animate to target position
-    _animateToPosition(displayPoints);
+    // Animate point by point to current position
+    await _animatePointByPoint(displayPoints);
 
-    await Future.delayed(const Duration(seconds: 8));
+    await Future.delayed(const Duration(seconds: 3));
 
     if (!mounted) return;
 
@@ -210,18 +165,10 @@ class _KnightAdvancerState extends State<KnightAdvancer>
       
       // Clear knight position so next journey starts fresh
       await StorageService.clearKnightPosition();
+      await StorageService.clearLastAnimatedPoint();
       
-      if (currentMilestone == 25) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const InstrumentChallenge()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const GuardChallenge()),
-        );
-      }
+      // Navigate to the appropriate challenge
+      _navigateToChallenge(currentMilestone);
       return;
     }
 
@@ -232,17 +179,141 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     );
   }
 
-  Map<String, double> _getPositionForPoints(int pts) {
-    if (pts >= 25) return positions['25']!;
-    if (pts >= 22) return positions['22-24']!;
-    if (pts >= 19) return positions['19-21']!;
-    if (pts >= 16) return positions['16-18']!;
-    if (pts >= 13) return positions['13-15']!;
-    if (pts >= 10) return positions['10-12']!;
-    if (pts >= 7) return positions['7-9']!;
-    if (pts >= 4) return positions['4-6']!;
-    if (pts >= 1) return positions['1-3']!;
-    return positions['1-3']!;
+  // Animate point by point from lastAnimatedPointInJourney to targetPoint
+  Future<void> _animatePointByPoint(int targetPoint) async {
+    print('Animating from point $lastAnimatedPointInJourney to $targetPoint');
+    
+    // Animate from lastAnimatedPointInJourney to targetPoint, one point at a time
+    for (int i = lastAnimatedPointInJourney + 1; i <= targetPoint; i++) {
+      if (!mounted) return;
+      
+      print('Moving to point $i');
+      await _animateToPosition(i);
+      
+      // Save this point so we remember it next time
+      await StorageService.saveLastAnimatedPoint(i);
+      lastAnimatedPointInJourney = i;
+      
+      // Small pause between points
+      if (i < targetPoint) {
+        await Future.delayed(const Duration(milliseconds: 1));
+      }
+    }
+  }
+
+  void _navigateToChallenge(int milestone) {
+    int journeyIndex = (milestone ~/ 25) - 1; // 0-indexed
+    
+    if (journeyIndex < 0 || journeyIndex >= backgroundOrder.length) {
+      // Fallback to practice finished
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const PracticeFinished()),
+      );
+      return;
+    }
+
+    Widget challengeScreen;
+    switch (journeyIndex) {
+      case 0:
+        challengeScreen = const InstrumentChallenge();
+        break;
+      case 1:
+        challengeScreen = const PostureChallenge();
+        break;
+      case 2:
+        challengeScreen = const BachChallenge(isReplay: false);
+        break;
+      case 3:
+        challengeScreen = const AnimalChallenge();
+        break;
+      case 4:
+        challengeScreen = const ListeningChallenge();
+        break;
+      case 5:
+        challengeScreen = const QuestionChallenge();
+        break;
+      case 6:
+        challengeScreen = const NotesChallenge();
+        break;
+      case 7:
+        challengeScreen = const GuardChallenge();
+        break;
+      case 8:
+        challengeScreen = const MemoryChallenge();
+        break;
+      case 9:
+        challengeScreen = const OpenGatesChallenge();
+        break;
+      default:
+        challengeScreen = const PracticeFinished();
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => challengeScreen),
+    );
+  }
+
+  String _getCurrentBackgroundKey() {
+    int journeyIndex = lastHandledMilestone ~/ 25;
+    if (journeyIndex >= backgroundOrder.length) {
+      journeyIndex = journeyIndex % backgroundOrder.length;
+    }
+    return backgroundOrder[journeyIndex];
+  }
+
+  String _getBackgroundImage() {
+    String bgKey = _getCurrentBackgroundKey();
+    if (pathsData['backgrounds'] != null && 
+        pathsData['backgrounds'][bgKey] != null &&
+        pathsData['backgrounds'][bgKey]['image'] != null) {
+      return pathsData['backgrounds'][bgKey]['image'];
+    }
+    return 'assets/images/Background1_instrument_cart.png'; // Fallback
+  }
+
+  String _getJourneyTitle() {
+    String bgKey = _getCurrentBackgroundKey();
+    if (pathsData['backgrounds'] != null && 
+        pathsData['backgrounds'][bgKey] != null &&
+        pathsData['backgrounds'][bgKey]['title'] != null) {
+      return pathsData['backgrounds'][bgKey]['title'];
+    }
+    return 'Epic Journey'; // Fallback
+  }
+
+  List<dynamic> _getCurrentWaypoints() {
+    String bgKey = _getCurrentBackgroundKey();
+    if (pathsData['backgrounds'] != null && 
+        pathsData['backgrounds'][bgKey] != null &&
+        pathsData['backgrounds'][bgKey]['waypoints'] != null) {
+      return pathsData['backgrounds'][bgKey]['waypoints'];
+    }
+    return []; // Fallback empty list
+  }
+
+  Map<String, double>? _getPositionForPoints(int pts) {
+    List<dynamic> waypoints = _getCurrentWaypoints();
+    
+    if (waypoints.isEmpty) {
+      // Fallback positions if no waypoints defined
+      return {'x': 0.5, 'y': 0.9, 'size': 0.12};
+    }
+
+    // Clamp points to 0-25 range
+    int index = pts.clamp(0, 25);
+    if (index > waypoints.length - 1) {
+      index = waypoints.length - 1;
+    }
+
+    var waypoint = waypoints[index];
+    return {
+      'x': (waypoint['x'] as num).toDouble(),
+      'y': (waypoint['y'] as num).toDouble(),
+      // Make knight 50% bigger by multiplying size by 2
+      'size': ((waypoint['size'] as num).toDouble()) * 2,
+    };
   }
 
   String? _getSpeechBubbleForPoints(int pts) {
@@ -258,8 +329,10 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     return null;
   }
 
-  void _animateToPosition(int displayPoints) {
-    Map<String, double> targetPos = _getPositionForPoints(displayPoints);
+  Future<void> _animateToPosition(int displayPoint) async {
+    Map<String, double>? targetPos = _getPositionForPoints(displayPoint);
+    
+    if (targetPos == null) return;
 
     double startX = animatedXPercent;
     double startY = animatedYPercent;
@@ -267,7 +340,10 @@ class _KnightAdvancerState extends State<KnightAdvancer>
 
     _animationController.reset();
 
-    _animationController.addListener(() async {
+    // Create a completer to wait for animation to finish
+    final completer = Completer<void>();
+
+    void listener() {
       setState(() {
         animatedXPercent =
             startX + (targetPos['x']! - startX) * _positionAnimation.value;
@@ -276,14 +352,25 @@ class _KnightAdvancerState extends State<KnightAdvancer>
         animatedSizePercent =
             startSize + (targetPos['size']! - startSize) * _positionAnimation.value;
       });
+    }
 
-      // Save position continuously during animation
-      await StorageService.saveAnimatedX(animatedXPercent);
-      await StorageService.saveAnimatedY(animatedYPercent);
-      await StorageService.saveAnimatedSize(animatedSizePercent);
-    });
+    void statusListener(AnimationStatus status) {
+      if (status == AnimationStatus.completed) {
+        completer.complete();
+      }
+    }
+
+    _animationController.addListener(listener);
+    _animationController.addStatusListener(statusListener);
 
     _animationController.forward();
+
+    // Wait for animation to complete
+    await completer.future;
+
+    // Clean up listeners
+    _animationController.removeListener(listener);
+    _animationController.removeStatusListener(statusListener);
   }
 
   @override
@@ -304,36 +391,31 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     final knightY = animatedYPercent * screenHeight;
     final knightSize = animatedSizePercent * screenWidth;
 
-    // Destination position (also relative) - increased size
-    final destX = 0.184 * screenWidth;
-    final destY = 0.27 * screenHeight;
-    final destSize = 0.28 * screenWidth; // Increased for visibility
-
     // Calculate display points for speech bubble
     int displayPoints = points - lastHandledMilestone;
-    if (points % 25 == 0 && points > 0) {
-      displayPoints = 25;
-    }
+    if (displayPoints < 0) displayPoints = 0;
+    if (displayPoints > 25) displayPoints = 25;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Background image - alternates between day and night
+          // Background image
           Positioned.fill(
             child: Image.asset(
               _getBackgroundImage(),
               fit: BoxFit.cover,
-            ),
-          ),
-
-          // Destination image (Guard, Wishing Well, etc.)
-          Positioned(
-            left: destX,
-            top: destY,
-            child: Image.asset(
-              _getDestinationImage(),
-              width: destSize,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Colors.grey[800],
+                  child: const Center(
+                    child: Text(
+                      'Background image not found',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
 
@@ -344,11 +426,20 @@ class _KnightAdvancerState extends State<KnightAdvancer>
             child: Image.asset(
               'assets/images/Knight.png',
               width: knightSize,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: knightSize,
+                  height: knightSize,
+                  color: Colors.red,
+                  child: Icon(Icons.person, color: Colors.white, size: knightSize * 0.6),
+                );
+              },
             ),
           ),
 
-          // Speech bubble - made responsive
+          // Speech bubble - only show at final destination (point 25 or current displayPoints if at end)
           if (_animationController.isCompleted &&
+              lastAnimatedPointInJourney == displayPoints &&
               _getSpeechBubbleForPoints(displayPoints) != null)
             Positioned(
               left: knightX + (screenWidth * 0.02),
@@ -373,9 +464,9 @@ class _KnightAdvancerState extends State<KnightAdvancer>
                   style: TextStyle(fontSize: screenWidth * 0.035),
                 ),
               ),
-            ), 
+            ),
 
-          // Centered info overlay - made responsive
+          // Title overlay
           Positioned(
             top: screenHeight * 0.05,
             left: 0,
@@ -406,6 +497,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Georgia',
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),

@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
-import 'instrument_challenge.dart';
-import 'guard_challenge.dart';
+import 'challenges/instrument_challenge.dart';
+import 'challenges/posture_challenge.dart';
+import 'challenges/bach_challenge.dart';
+import 'challenges/animal_challenge.dart';
+import 'challenges/listening_challenge.dart';
+import 'challenges/question_challenge.dart';
+import 'challenges/notes_challenge.dart';
+import 'challenges/guard_challenge.dart';
+import 'challenges/memory_challenge.dart';
+import 'challenges/opengates_challenge.dart';
 
 class ChallengeItem {
   final String id;
@@ -31,28 +39,63 @@ class _ChallengesListState extends State<ChallengesList> {
   final List<ChallengeItem> allChallenges = [
     ChallengeItem(
       id: 'instrument_challenge',
-      title: 'Violin Puzzle Challenge',
+      title: 'Journey to the Instrument Wagon',
       description: 'Build the violin and learn its parts',
       icon: Icons.music_note,
     ),
     ChallengeItem(
+      id: 'posture_challenge',
+      title: 'Journey to the Violinist',
+      description: 'Match posture pairs correctly',
+      icon: Icons.accessibility_new,
+    ),
+    ChallengeItem(
+      id: 'bach_challenge',
+      title: 'Visit Johann Sebastian Bach',
+      description: 'Complete the Bach challenge',
+      icon: Icons.piano,
+    ),
+    ChallengeItem(
+      id: 'animal_challenge',
+      title: 'Journey to the Enchanted Animal',
+      description: 'Match the magical animals',
+      icon: Icons.pets,
+    ),
+    ChallengeItem(
+      id: 'listening_challenge',
+      title: 'Journey to the Magical Bird',
+      description: 'Match musical terms and dynamics',
+      icon: Icons.hearing,
+    ),
+    ChallengeItem(
+      id: 'question_challenge',
+      title: 'Get the Box with the Question Mark',
+      description: 'Solve the mysteries',
+      icon: Icons.help_outline,
+    ),
+    ChallengeItem(
+      id: 'notes_challenge',
+      title: 'Journey Along Music',
+      description: 'Match musical notes',
+      icon: Icons.library_music,
+    ),
+    ChallengeItem(
       id: 'guard_challenge',
-      title: 'The Guard Challenge',
+      title: 'Journey to the Guard',
       description: 'Play quietly to not wake the guard!',
       icon: Icons.volume_down,
     ),
-    // Add more challenges here as you create them
     ChallengeItem(
-      id: 'rhythm_challenge',
-      title: 'Rhythm Challenge',
-      description: 'Coming soon!',
-      icon: Icons.queue_music,
+      id: 'memory_challenge',
+      title: 'Climb to the Castle',
+      description: 'Test your musical memory',
+      icon: Icons.lightbulb_outline,
     ),
     ChallengeItem(
-      id: 'pitch_challenge',
-      title: 'Pitch Challenge',
-      description: 'Coming soon!',
-      icon: Icons.hearing,
+      id: 'opengates_challenge',
+      title: 'The Castle',
+      description: 'Open the castle gates',
+      icon: Icons.castle,
     ),
   ];
 
@@ -118,6 +161,54 @@ class _ChallengesListState extends State<ChallengesList> {
           ),
         );
         break;
+      case 'posture_challenge':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const PostureChallenge(isReplay: true),
+          ),
+        );
+        break;
+      case 'bach_challenge':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const BachChallenge(isReplay: true),
+          ),
+        );
+        break;
+      case 'animal_challenge':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AnimalChallenge(isReplay: true),
+          ),
+        );
+        break;
+      case 'listening_challenge':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ListeningChallenge(isReplay: true),
+          ),
+        );
+        break;
+      case 'question_challenge':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const QuestionChallenge(isReplay: true),
+          ),
+        );
+        break;
+      case 'notes_challenge':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const NotesChallenge(isReplay: true),
+          ),
+        );
+        break;
       case 'guard_challenge':
         Navigator.push(
           context,
@@ -126,7 +217,22 @@ class _ChallengesListState extends State<ChallengesList> {
           ),
         );
         break;
-      // Add more cases for other challenges
+      case 'memory_challenge':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const MemoryChallenge(isReplay: true),
+          ),
+        );
+        break;
+      case 'opengates_challenge':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const OpenGatesChallenge(isReplay: true),
+          ),
+        );
+        break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('This challenge is coming soon!')),
