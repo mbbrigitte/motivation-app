@@ -390,7 +390,7 @@ class _ViolinTunerState extends State<ViolinTuner>
                         alignment: Alignment.center,
                         heightFactor: 0.55,
                         child: Image.asset(
-                          "assets/images/Gemini_dragon_tuned.png",
+                          "assets/images/Gemini_dragon_tuned.webp",
                           width: maxWidth,
                           fit: BoxFit.cover,
                         ),

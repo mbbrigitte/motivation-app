@@ -28,6 +28,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
   int lastHandledMilestone = 0;
   bool isLoading = true;
   Map<String, dynamic> pathsData = {};
+  bool showSpeechBubble = false;
 
   // Animation
   late AnimationController _animationController;
@@ -72,7 +73,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     super.initState();
 
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 900), // 2 seconds per point was really smooth but somewhat slow
+      duration: const Duration(milliseconds: 600), // 2 seconds per point was really smooth but somewhat slow
       vsync: this,
     );
 
@@ -154,6 +155,13 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     // Animate point by point to current position
     await _animatePointByPoint(displayPoints);
 
+    // Show speech bubble after animation completes
+    if (mounted) {
+      setState(() {
+        showSpeechBubble = true;
+      });
+    }
+
     await Future.delayed(const Duration(seconds: 3));
 
     if (!mounted) return;
@@ -181,13 +189,11 @@ class _KnightAdvancerState extends State<KnightAdvancer>
 
   // Animate point by point from lastAnimatedPointInJourney to targetPoint
   Future<void> _animatePointByPoint(int targetPoint) async {
-    print('Animating from point $lastAnimatedPointInJourney to $targetPoint');
     
     // Animate from lastAnimatedPointInJourney to targetPoint, one point at a time
     for (int i = lastAnimatedPointInJourney + 1; i <= targetPoint; i++) {
       if (!mounted) return;
       
-      print('Moving to point $i');
       await _animateToPosition(i);
       
       // Save this point so we remember it next time
@@ -196,7 +202,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
       
       // Small pause between points
       if (i < targetPoint) {
-        await Future.delayed(const Duration(milliseconds: 1));
+        await Future.delayed(const Duration(milliseconds: 50));
       }
     }
   }
@@ -270,7 +276,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
         pathsData['backgrounds'][bgKey]['image'] != null) {
       return pathsData['backgrounds'][bgKey]['image'];
     }
-    return 'assets/images/Background1_instrument_cart.png'; // Fallback
+    return 'assets/images/Background1_instrument_cart.webp'; // Fallback
   }
 
   String _getJourneyTitle() {
@@ -312,7 +318,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
       'x': (waypoint['x'] as num).toDouble(),
       'y': (waypoint['y'] as num).toDouble(),
       // Make knight 50% bigger by multiplying size by 2
-      'size': ((waypoint['size'] as num).toDouble()) * 2,
+      'size': ((waypoint['size'] as num).toDouble()) * 3,
     };
   }
 
@@ -437,10 +443,8 @@ class _KnightAdvancerState extends State<KnightAdvancer>
             ),
           ),
 
-          // Speech bubble - only show at final destination (point 25 or current displayPoints if at end)
-          if (_animationController.isCompleted &&
-              lastAnimatedPointInJourney == displayPoints &&
-              _getSpeechBubbleForPoints(displayPoints) != null)
+          // Speech bubble - show when animation is complete and flag is set
+          if (showSpeechBubble && _getSpeechBubbleForPoints(displayPoints) != null)
             Positioned(
               left: knightX + (screenWidth * 0.02),
               top: knightY - knightSize - (screenHeight * 0.08),

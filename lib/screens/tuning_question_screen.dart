@@ -183,7 +183,7 @@ class TuningQuestionScreen extends StatelessWidget {
                 Container(
                   constraints: BoxConstraints.loose(Size(w * 0.7, h * 0.4)),
                   child: Image.asset(
-                    'assets/images/help_tuning.png',
+                    'assets/images/help_tuning.webp',
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
                       return Text(

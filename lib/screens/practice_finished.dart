@@ -180,7 +180,7 @@ class _PracticeFinishedState extends State<PracticeFinished> {
                       Expanded(
                         child: _buildCustomButton(
                           context: context,
-                          imagePath: 'assets/images/Thanks_bye_button.png',
+                          imagePath: 'assets/images/Thanks_bye_button.webp',
                           label: '...nothing, I am done,\nthank you!',
                           buttonSize: buttonSize,
                           tooltip: 'Goodbye',

@@ -389,7 +389,7 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
                             Opacity(
                               opacity: 0.15,
                               child: Image.asset(
-                                'assets/images/kind_violin.png',
+                                'assets/images/kind_violin.webp',
                                 width: violinWidth,
                                 height: violinHeight,
                                 fit: BoxFit.contain,
@@ -436,7 +436,7 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
                                                 maxWidth: violinWidth,
                                                 maxHeight: violinHeight,
                                                 child: Image.asset(
-                                                  'assets/images/kind_violin.png',
+                                                  'assets/images/kind_violin.webp',
                                                   width: violinWidth,
                                                   height: violinHeight,
                                                   fit: BoxFit.contain,
@@ -544,7 +544,7 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
                               maxWidth: violinWidth,
                               maxHeight: violinHeight,
                               child: Image.asset(
-                                'assets/images/kind_violin.png',
+                                'assets/images/kind_violin.webp',
                                 width: violinWidth,
                                 height: violinHeight,
                                 fit: BoxFit.contain,
@@ -583,7 +583,7 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
                             maxWidth: violinWidth,
                             maxHeight: violinHeight,
                             child: Image.asset(
-                              'assets/images/kind_violin.png',
+                              'assets/images/kind_violin.webp',
                               width: violinWidth,
                               height: violinHeight,
                               fit: BoxFit.contain,
@@ -653,7 +653,7 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
                           left: (screenWidth * 0.9 - violinWidth) / 2,
                           top: violinTopOffset,
                           child: Image.asset(
-                            'assets/images/kind_violin.png',
+                            'assets/images/kind_violin.webp',
                             width: violinWidth,
                             height: violinHeight,
                             fit: BoxFit.contain,
@@ -815,7 +815,7 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
                           left: (screenWidth * 0.9 - violinWidth) / 2,
                           top: violinTopOffset,
                           child: Image.asset(
-                            'assets/images/kind_violin.png',
+                            'assets/images/kind_violin.webp',
                             width: violinWidth,
                             height: violinHeight,
                             fit: BoxFit.contain,

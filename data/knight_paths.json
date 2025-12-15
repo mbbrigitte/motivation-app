@@ -1,7 +1,7 @@
 {
   "backgrounds": {
     "instrument_cart": {
-      "image": "assets/images/Background1_instrument_cart.png",
+      "image": "assets/images/Background1_instrument_cart.webp",
       "title": "Journey to the instrument wagon",
       "challenge": "instrument_challenge",
       "waypoints": [
@@ -133,7 +133,7 @@
       ]
     },
     "violinist": {
-      "image": "assets/images/Background2_violinist.png",
+      "image": "assets/images/Background2_violinist.webp",
       "title": "Journey to the violinist",
       "challenge": "posture_challenge",
       "waypoints": [
@@ -265,7 +265,7 @@
       ]
     },
     "bach": {
-      "image": "assets/images/Background3_mozart.png",
+      "image": "assets/images/Background3_mozart.webp",
       "title": "Visit Johann Sebastian Bach",
       "challenge": "bach_challenge",
       "waypoints": [
@@ -397,7 +397,7 @@
       ]
     },
     "animal": {
-      "image": "assets/images/Background4_animal.png",
+      "image": "assets/images/Background4_animal.webp",
       "title": "Journey to the enchanted animal",
       "challenge": "animal_challenge",
       "waypoints": [
@@ -529,139 +529,139 @@
       ]
     },
     "bird": {
-      "image": "assets/images/Background5_bird.png",
+      "image": "assets/images/Background5_bird.webp",
       "title": "Journey to the magical bird",
       "challenge": "listening_challenge",
       "waypoints": [
         {
-          "x": 0.427,
-          "y": 0.952,
+          "x": 0.448,
+          "y": 0.962,
           "size": 0.08
         },
         {
-          "x": 0.494,
-          "y": 0.939,
+          "x": 0.428,
+          "y": 0.935,
           "size": 0.078
         },
         {
-          "x": 0.541,
-          "y": 0.917,
+          "x": 0.426,
+          "y": 0.914,
           "size": 0.077
         },
         {
-          "x": 0.577,
-          "y": 0.886,
+          "x": 0.412,
+          "y": 0.896,
           "size": 0.075
         },
         {
-          "x": 0.595,
-          "y": 0.848,
+          "x": 0.399,
+          "y": 0.89,
           "size": 0.073
         },
         {
-          "x": 0.593,
-          "y": 0.816,
+          "x": 0.39,
+          "y": 0.876,
           "size": 0.072
         },
         {
-          "x": 0.555,
-          "y": 0.791,
+          "x": 0.401,
+          "y": 0.851,
           "size": 0.07
         },
         {
-          "x": 0.514,
-          "y": 0.771,
+          "x": 0.421,
+          "y": 0.835,
           "size": 0.068
         },
         {
-          "x": 0.465,
-          "y": 0.752,
+          "x": 0.439,
+          "y": 0.824,
           "size": 0.067
         },
         {
-          "x": 0.421,
-          "y": 0.729,
+          "x": 0.457,
+          "y": 0.813,
           "size": 0.065
         },
         {
-          "x": 0.39,
-          "y": 0.693,
+          "x": 0.471,
+          "y": 0.792,
           "size": 0.063
         },
         {
-          "x": 0.393,
-          "y": 0.644,
+          "x": 0.471,
+          "y": 0.776,
           "size": 0.062
         },
         {
-          "x": 0.442,
-          "y": 0.621,
+          "x": 0.455,
+          "y": 0.756,
           "size": 0.06
         },
         {
-          "x": 0.491,
-          "y": 0.599,
+          "x": 0.444,
+          "y": 0.747,
           "size": 0.058
         },
         {
-          "x": 0.541,
-          "y": 0.584,
+          "x": 0.439,
+          "y": 0.738,
           "size": 0.057
         },
         {
-          "x": 0.598,
-          "y": 0.565,
+          "x": 0.435,
+          "y": 0.72,
           "size": 0.055
         },
         {
-          "x": 0.639,
-          "y": 0.534,
+          "x": 0.435,
+          "y": 0.702,
           "size": 0.053
         },
         {
-          "x": 0.626,
-          "y": 0.506,
+          "x": 0.435,
+          "y": 0.684,
           "size": 0.052
         },
         {
-          "x": 0.569,
-          "y": 0.482,
+          "x": 0.437,
+          "y": 0.654,
           "size": 0.05
         },
         {
-          "x": 0.522,
-          "y": 0.463,
+          "x": 0.444,
+          "y": 0.638,
           "size": 0.048
         },
         {
-          "x": 0.461,
-          "y": 0.449,
+          "x": 0.451,
+          "y": 0.623,
           "size": 0.047
         },
         {
-          "x": 0.404,
-          "y": 0.431,
+          "x": 0.457,
+          "y": 0.605,
           "size": 0.045
         },
         {
-          "x": 0.372,
-          "y": 0.419,
+          "x": 0.471,
+          "y": 0.589,
           "size": 0.043
         },
         {
-          "x": 0.363,
-          "y": 0.384,
+          "x": 0.485,
+          "y": 0.58,
           "size": 0.042
         },
         {
-          "x": 0.437,
-          "y": 0.359,
+          "x": 0.5,
+          "y": 0.564,
           "size": 0.04
         }
       ]
     },
     "questionmark": {
-      "image": "assets/images/Background6_questionmark.png",
+      "image": "assets/images/Background6_questionmark.webp",
       "title": "Get the box with the question mark",
       "challenge": "question_challenge",
       "waypoints": [
@@ -793,7 +793,7 @@
       ]
     },
     "music": {
-      "image": "assets/images/Background7_violinsheets.png",
+      "image": "assets/images/Background7_violinsheets.webp",
       "title": "Journey along music",
       "challenge": "notes_challenge",
       "waypoints": [
@@ -925,7 +925,7 @@
       ]
     },
     "guard": {
-      "image": "assets/images/Background8_guard_snow.png",
+      "image": "assets/images/Background8_guard_snow.webp",
       "title": "Journey to the guard",
       "challenge": "guard_challenge",
       "waypoints": [
@@ -1189,7 +1189,7 @@
       ]
     },
     "castle_gates": {
-      "image": "assets/images/Backtround10_castleclose.png",
+      "image": "assets/images/Backtround10_castleclose.webp",
       "title": "The castle",
       "challenge": "opengates_challenge",
       "waypoints": [
