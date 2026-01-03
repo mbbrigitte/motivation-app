@@ -57,8 +57,8 @@ class _ChallengesListState extends State<ChallengesList> {
     ),
     ChallengeItem(
       id: 'animal_challenge',
-      title: 'Journey to the Enchanted Animal',
-      description: 'Match the magical animals',
+      title: 'Journey to the Animal',
+      description: 'Animal spinning wheel',
       icon: Icons.pets,
     ),
     ChallengeItem(
@@ -205,7 +205,7 @@ class _ChallengesListState extends State<ChallengesList> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => const NotesChallenge(isReplay: true),
+            builder: (context) =>  BirdNoteGame(isReplay: true),
           ),
         );
         break;

@@ -509,7 +509,7 @@ class _BachChallengeState extends State<BachChallenge> with TickerProviderStateM
               children: [
                 Expanded(
                   child: Image.asset(
-                    'assets/images/Bach_on_Bench.png',
+                    'assets/images/Bach_on_Bench.webp',
                     fit: BoxFit.contain,
                   ),
                 ),

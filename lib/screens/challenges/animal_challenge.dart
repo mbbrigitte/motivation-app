@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-//import '../../services/storage_service.dart';
+import 'dart:math' as math;
 import 'package:flutter_testapplication/services/storage_service.dart';
 import '../practice_finished.dart';
 
@@ -15,44 +15,50 @@ class AnimalChallenge extends StatefulWidget {
 
 class _AnimalChallengeState extends State<AnimalChallenge> with TickerProviderStateMixin {
   int _currentTokens = 0;
-  List<MemoryCard> _cards = [];
-  List<int> _flippedIndices = [];
-  bool _isChecking = false;
-  Set<int> _matchedIndices = {};
-  int _matchesFound = 0;
-  final int _totalPairs = 5;
+  bool _showIntro = true;
+  bool _isSpinning = false;
+  bool _hasSpunWheel = false;
+  bool _hasFinishedPlaying = false;
+  String _selectedAnimal = '';
   
-  late Stopwatch _stopwatch;
-  late Timer _timer;
-  String _elapsedTime = '0:00';
+  late AnimationController _spinController;
+  double _currentRotation = 0;
+  double _targetRotation = 0;
+  
+  // Animal names in clockwise order starting from 12 o'clock (0 degrees)
+  final List<String> _animals = [
+    'Tiger',
+    'Mouse', 
+    'Crocodile',
+    'Horse',
+    'Elephant',
+    'Lion',
+  ];
+  
+  // Map animals to their image files
+  final Map<String, String> _animalImages = {
+    'Tiger': 'tiger.webp',
+    'Mouse': 'mouse.webp',
+    'Crocodile': 'croc.webp',
+    'Horse': 'horse.jpeg',
+    'Elephant': 'elephant.webp',
+    'Lion': 'Lion-removebg-preview.webp',
+  };
 
   @override
   void initState() {
     super.initState();
     _loadTokens();
-    _initializeCards();
     
-    // Initialize and start stopwatch
-    _stopwatch = Stopwatch();
-    _stopwatch.start();
-    _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      if (mounted) {
-        setState(() {
-          _elapsedTime = _formatTime(_stopwatch.elapsed);
-        });
-      }
-    });
+    _spinController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3000),
+    );
     
     // Unlock this challenge when first accessed (not in replay mode)
     if (!widget.isReplay) {
       StorageService.unlockChallenge('animal_challenge');
     }
-  }
-  
-  String _formatTime(Duration duration) {
-    int minutes = duration.inMinutes;
-    int seconds = duration.inSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
   Future<void> _loadTokens() async {
@@ -62,81 +68,133 @@ class _AnimalChallengeState extends State<AnimalChallenge> with TickerProviderSt
     });
   }
 
-  void _initializeCards() {
-    List<MemoryCard> cards = [
-      MemoryCard(id: 0, content: '🐘', type: CardType.emoji, pairId: 0),
-      MemoryCard(id: 1, content: 'Elephant', type: CardType.text, pairId: 0),
-      MemoryCard(id: 2, content: '🦁', type: CardType.emoji, pairId: 1),
-      MemoryCard(id: 3, content: 'Lion', type: CardType.text, pairId: 1),
-      MemoryCard(id: 4, content: '🐻', type: CardType.emoji, pairId: 2),
-      MemoryCard(id: 5, content: 'Bear', type: CardType.text, pairId: 2),
-      MemoryCard(id: 6, content: '🦋', type: CardType.emoji, pairId: 3),
-      MemoryCard(id: 7, content: 'Butterfly', type: CardType.text, pairId: 3),
-      MemoryCard(id: 8, content: '🦉', type: CardType.emoji, pairId: 4),
-      MemoryCard(id: 9, content: 'Owl', type: CardType.text, pairId: 4),
-    ];
+  void _goToWheel() {
+    setState(() {
+      _showIntro = false;
+    });
+  }
+
+  void _startSpinning() {
+    if (_isSpinning || _hasSpunWheel) return;
     
-    cards.shuffle();
     setState(() {
-      _cards = cards;
+      _isSpinning = true;
     });
+    
+    // Start continuous spinning
+    _spinController.repeat();
   }
 
-  void _onCardTapped(int index) {
-    if (_isChecking || 
-        _matchedIndices.contains(index) || 
-        _flippedIndices.contains(index) ||
-        _flippedIndices.length >= 2) {
-      return;
-    }
-
+  void _stopSpinning() async {
+    if (!_isSpinning || _hasSpunWheel) return;
+    
+    // Get current rotation from the spinning animation
+    final currentValue = _spinController.value;
+    _currentRotation = currentValue * 2 * math.pi;
+    
+    // Stop the repeat animation
+    _spinController.stop();
+    _spinController.reset();
+    
+    // Mark that we're no longer in fast spinning mode
     setState(() {
-      _flippedIndices.add(index);
+      _isSpinning = false;
     });
-
-    if (_flippedIndices.length == 2) {
-      _checkForMatch();
-    }
-  }
-
-  Future<void> _checkForMatch() async {
-    setState(() {
-      _isChecking = true;
-    });
-
-    await Future.delayed(const Duration(milliseconds: 600));
-
-    int firstIndex = _flippedIndices[0];
-    int secondIndex = _flippedIndices[1];
-
-    if (_cards[firstIndex].pairId == _cards[secondIndex].pairId) {
-      // Match found!
+    
+    // Generate random final position - add 2-4 more rotations from current position
+    final random = math.Random();
+    final extraRotations = 2 + random.nextInt(3);
+    final randomAngle = random.nextDouble() * 2 * math.pi;
+    _targetRotation = _currentRotation + (extraRotations * 2 * math.pi) + randomAngle;
+    
+    // Animate to final position with slow deceleration
+    final Animation<double> animation = Tween<double>(
+      begin: _currentRotation,
+      end: _targetRotation,
+    ).animate(CurvedAnimation(
+      parent: _spinController,
+      curve: Curves.easeOut, // Changed to easeOut for smoother deceleration
+    ));
+    
+    _spinController.duration = const Duration(milliseconds: 4000); // Longer duration for smoother slowdown
+    
+    animation.addListener(() {
       setState(() {
-        _matchedIndices.add(firstIndex);
-        _matchedIndices.add(secondIndex);
-        _matchesFound++;
+        _currentRotation = animation.value;
       });
-
-      // Brief pause to show the match
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Check if game is complete
-      if (_matchesFound == _totalPairs) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        _onGameComplete();
-      }
-    }
-
+    });
+    
+    // Start the slowdown animation
+    await _spinController.forward(from: 0);
+    
+    // Add shiver effect
+    await _shiverAnimation();
+    
+    // Calculate which animal was selected
+    _determineSelectedAnimal();
+    
     setState(() {
-      _flippedIndices.clear();
-      _isChecking = false;
+      _hasSpunWheel = true;
+    });
+    
+    // Wait 3 seconds before showing the result screen
+    await Future.delayed(const Duration(seconds: 3));
+  }
+
+  Future<void> _shiverAnimation() async {
+    const shiverAmount = 0.05;
+    const shiverCount = 4;
+    
+    for (int i = 0; i < shiverCount; i++) {
+      setState(() {
+        _currentRotation += shiverAmount;
+      });
+      await Future.delayed(const Duration(milliseconds: 50));
+      
+      setState(() {
+        _currentRotation -= shiverAmount;
+      });
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+  }
+
+  void _determineSelectedAnimal() {
+    // The indicator is at 3 o'clock (pointing to the right)
+    // Normalize the final rotation to 0-2π range
+    final normalizedRotation = _currentRotation % (2 * math.pi);
+    
+    // The wheel rotates clockwise, and we need to find which animal is at the 3 o'clock position
+    // Since the indicator points right (90 degrees from top), we need to figure out
+    // which animal segment is at that position
+    
+    // Calculate the effective angle: the indicator is at 90 degrees (π/2),
+    // so we need to see which animal is there after the wheel has rotated
+    // We subtract the wheel rotation from the indicator position
+    double effectiveAngle = (math.pi / 2 - normalizedRotation) % (2 * math.pi);
+    if (effectiveAngle < 0) effectiveAngle += 2 * math.pi;
+    
+    // Each animal occupies 60 degrees (π/3 radians)
+    final segmentSize = (2 * math.pi) / 6;
+    
+    // Find which segment (0-5) the effective angle falls into
+    int animalIndex = (effectiveAngle / segmentSize).floor();
+    
+    // Debug print to help verify
+    print('Final rotation: $_currentRotation radians (${_currentRotation * 180 / math.pi} degrees)');
+    print('Normalized: $normalizedRotation radians (${normalizedRotation * 180 / math.pi} degrees)');
+    print('Effective angle: $effectiveAngle radians (${effectiveAngle * 180 / math.pi} degrees)');
+    print('Animal index: $animalIndex');
+    print('Selected animal: ${_animals[animalIndex % 6]}');
+    
+    setState(() {
+      _selectedAnimal = _animals[animalIndex % 6];
     });
   }
 
-  Future<void> _onGameComplete() async {
-    // Stop the timer
-    _stopwatch.stop();
-    _timer.cancel();
+  Future<void> _onFinishedPlaying() async {
+    setState(() {
+      _hasFinishedPlaying = true;
+    });
     
     // Only award tokens if not in replay mode
     if (!widget.isReplay) {
@@ -155,8 +213,8 @@ class _AnimalChallengeState extends State<AnimalChallenge> with TickerProviderSt
           ),
           content: Text(
             widget.isReplay
-                ? 'Amazing! You found all the enchanted animals!\n\nTime: $_elapsedTime'
-                : 'Amazing! You found all the enchanted animals!\n\nTime: $_elapsedTime\n\nYou get one token!\nYou now have a total of $_currentTokens tokens!',
+                ? 'Well done! You earned an extra point!'
+                : 'Well done! You earned an extra point!\n\nYou now have a total of $_currentTokens tokens!',
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -167,7 +225,7 @@ class _AnimalChallengeState extends State<AnimalChallenge> with TickerProviderSt
         ),
       );
 
-      await Future.delayed(const Duration(seconds: 4));
+      await Future.delayed(const Duration(seconds: 3));
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -199,201 +257,301 @@ class _AnimalChallengeState extends State<AnimalChallenge> with TickerProviderSt
 
   @override
   void dispose() {
-    _timer.cancel();
-    _stopwatch.stop();
+    _spinController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final wheelSize = screenWidth * 0.75 > 350 ? 350.0 : screenWidth * 0.75;
+    final indicatorSize = wheelSize * 0.24;
+    
     return Scaffold(
       backgroundColor: const Color(0xFFDAA520),
       appBar: AppBar(
-        title: const Text('The Enchanted Animal Challenge'),
+        title: Text(
+          'The Animal Challenge',
+          style: TextStyle(fontSize: screenWidth * 0.045),
+        ),
         backgroundColor: Colors.red[900],
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              const Text(
-                'Match the enchanted animals!',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFFB22222),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red[900]!, width: 2),
+      body: Center(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.all(screenWidth * 0.06),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(height: screenHeight * 0.02),
+                
+                // Introduction screen
+                if (_showIntro) ...[
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.08),
+                    child: Text(
+                      'Oh, a girl is playing the violin loud and confident like a tiger.',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.045,
+                        color: const Color(0xFFB22222),
+                        height: 1.5,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                            color: Colors.white.withOpacity(0.8),
+                            blurRadius: 4,
+                            offset: const Offset(0, 0),
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  
+                  SizedBox(height: screenHeight * 0.025),
+                  
+                  Image.asset(
+                    'assets/images/girl_tiger_violin.webp',
+                    width: screenWidth * 0.85,
+                    height: screenWidth * 0.85,
+                    fit: BoxFit.contain,
+                  ),
+                  
+                  SizedBox(height: screenHeight * 0.025),
+                  
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.08),
+                    child: Text(
+                      'Can you also play one of your pieces like an animal? The animal spinning wheel will help you choose the animal.',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.045,
+                        color: const Color(0xFFB22222),
+                        height: 1.5,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                            color: Colors.white.withOpacity(0.8),
+                            blurRadius: 4,
+                            offset: const Offset(0, 0),
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  
+                  SizedBox(height: screenHeight * 0.03),
+                  
+                  ElevatedButton(
+                    onPressed: _goToWheel,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[900],
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenWidth * 0.1,
+                        vertical: screenHeight * 0.025,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        side: const BorderSide(color: Colors.white, width: 3),
+                      ),
                     ),
                     child: Text(
-                      'Matches: $_matchesFound / $_totalPairs',
+                      'Go to wheel',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: screenWidth * 0.06,
                         fontWeight: FontWeight.bold,
-                        color: Colors.red[900],
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red[900]!, width: 2),
+                ]
+                else if (!_hasSpunWheel) ...[
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.08),
+                    child: Text(
+                      'Spin the wheel',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.045,
+                        color: const Color(0xFFB22222),
+                        height: 1.5,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                            color: Colors.white.withOpacity(0.8),
+                            blurRadius: 4,
+                            offset: const Offset(0, 0),
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    child: Row(
+                  ),
+                  
+                  SizedBox(height: screenHeight * 0.04),
+                  
+                  SizedBox(
+                    height: wheelSize + 50,
+                    width: wheelSize + 50,
+                    child: Stack(
+                      alignment: Alignment.center,
                       children: [
-                        Icon(Icons.timer, color: Colors.red[900], size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          _elapsedTime,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red[900],
+                        AnimatedBuilder(
+                          animation: _spinController,
+                          builder: (context, child) {
+                            final rotation = _isSpinning 
+                                ? _spinController.value * 2 * math.pi 
+                                : _currentRotation;
+                            
+                            return Transform.rotate(
+                              angle: rotation,
+                              child: Image.asset(
+                                'assets/images/spinning_part_of_wheel.webp',
+                                width: wheelSize,
+                                height: wheelSize,
+                                fit: BoxFit.contain,
+                              ),
+                            );
+                          },
+                        ),
+                        
+                        Image.asset(
+                          'assets/images/rim_part_of_wheel.webp',
+                          width: wheelSize,
+                          height: wheelSize,
+                          fit: BoxFit.contain,
+                        ),
+                        
+                        Positioned(
+                          right: 0,
+                          child: Transform.rotate(
+                            angle: math.pi / 2,
+                            child: Image.asset(
+                              'assets/images/indicator_part_of_wheel.webp',
+                              width: indicatorSize,
+                              height: indicatorSize,
+                              fit: BoxFit.contain,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 30),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.4,
-                  ),
-                  itemCount: _cards.length,
-                  itemBuilder: (context, index) {
-                    bool isFlipped = _flippedIndices.contains(index) || 
-                                     _matchedIndices.contains(index);
-                    bool isMatched = _matchedIndices.contains(index);
-
-                    return GestureDetector(
-                      onTap: () => _onCardTapped(index),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        transitionBuilder: (child, animation) {
-                          return ScaleTransition(
-                            scale: animation,
-                            child: child,
-                          );
-                        },
-                        child: isFlipped
-                            ? _buildCardFront(_cards[index], isMatched)
-                            : _buildCardBack(),
+                  
+                  SizedBox(height: screenHeight * 0.04),
+                  
+                  ElevatedButton(
+                    onPressed: _isSpinning ? _stopSpinning : _startSpinning,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[900],
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenWidth * 0.1,
+                        vertical: screenHeight * 0.025,
                       ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        side: const BorderSide(color: Colors.white, width: 3),
+                      ),
+                    ),
+                    child: Text(
+                      _isSpinning ? 'Stop' : 'Turn',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.06,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ]
+                else if (_hasSpunWheel && !_hasFinishedPlaying) ...[
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.08),
+                    child: Text(
+                      'Oh, it is ${_selectedAnimal.toLowerCase() == 'elephant' ? 'an' : 'a'} $_selectedAnimal!',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.045,
+                        color: const Color(0xFFB22222),
+                        height: 1.5,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                            color: Colors.white.withOpacity(0.8),
+                            blurRadius: 4,
+                            offset: const Offset(0, 0),
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  
+                  SizedBox(height: screenHeight * 0.02),
+                  
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.08),
+                    child: Text(
+                      'Now take your violin and play one of your old pieces to sound like ${_selectedAnimal.toLowerCase() == 'elephant' ? 'an' : 'a'} $_selectedAnimal!',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.045,
+                        color: const Color(0xFFB22222),
+                        height: 1.5,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                            color: Colors.white.withOpacity(0.8),
+                            blurRadius: 4,
+                            offset: const Offset(0, 0),
+                          ),
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  
+                  SizedBox(height: screenHeight * 0.03),
+                  
+                  Image.asset(
+                    'assets/images/${_animalImages[_selectedAnimal]}',
+                    width: screenWidth * 0.6,
+                    height: screenWidth * 0.6,
+                    fit: BoxFit.contain,
+                  ),
+                  
+                  SizedBox(height: screenHeight * 0.04),
+                  
+                  ElevatedButton(
+                    onPressed: _onFinishedPlaying,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[700],
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenWidth * 0.08,
+                        vertical: screenHeight * 0.025,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        side: const BorderSide(color: Colors.white, width: 3),
+                      ),
+                    ),
+                    child: Text(
+                      'I finished playing like ${_selectedAnimal.toLowerCase() == 'elephant' ? 'an' : 'a'} $_selectedAnimal',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.05,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+                
+                SizedBox(height: screenHeight * 0.02),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
-
-  Widget _buildCardBack() {
-    return Container(
-      key: const ValueKey('back'),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.red[700]!, Colors.red[900]!],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Icon(
-          Icons.music_note,
-          size: 50,
-          color: Colors.white.withOpacity(0.5),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCardFront(MemoryCard card, bool isMatched) {
-    return Container(
-      key: ValueKey('front-${card.id}'),
-      decoration: BoxDecoration(
-        color: isMatched ? Colors.green[400] : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isMatched ? Colors.green[700]! : Colors.red[700]!,
-          width: 3,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Text(
-          card.content,
-          style: TextStyle(
-            fontSize: card.type == CardType.emoji ? 50 : 24,
-            fontWeight: FontWeight.bold,
-            color: isMatched ? Colors.white : Colors.red[900],
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
-}
-
-enum CardType {
-  text,
-  emoji,
-}
-
-class MemoryCard {
-  final int id;
-  final String content;
-  final CardType type;
-  final int pairId;
-
-  MemoryCard({
-    required this.id,
-    required this.content,
-    required this.type,
-    required this.pairId,
-  });
 }

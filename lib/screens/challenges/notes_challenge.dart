@@ -1,58 +1,78 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
-//import '../../services/storage_service.dart';
+import 'dart:math';
+import 'package:sensors_plus/sensors_plus.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_testapplication/services/storage_service.dart';
 import '../practice_finished.dart';
 
-class NotesChallenge extends StatefulWidget {
+class BirdNoteGame extends StatefulWidget {
   final bool isReplay;
   
-  const NotesChallenge({super.key, this.isReplay = false});
+  BirdNoteGame({super.key, this.isReplay = false});
 
   @override
-  State<NotesChallenge> createState() => _NotesChallengeState();
+  State<BirdNoteGame> createState() => _BirdNoteGameState();
 }
 
-class _NotesChallengeState extends State<NotesChallenge> with TickerProviderStateMixin {
+class _BirdNoteGameState extends State<BirdNoteGame> with TickerProviderStateMixin {
+  // Game state
+  int _currentLevel = 0; // 0=A, 1=C, 2=F, 3=D
+  int _correctCatches = 0;
   int _currentTokens = 0;
-  List<MemoryCard> _cards = [];
-  List<int> _flippedIndices = [];
-  bool _isChecking = false;
-  Set<int> _matchedIndices = {};
-  int _matchesFound = 0;
-  final int _totalPairs = 5;
   
-  late Stopwatch _stopwatch;
-  late Timer _timer;
-  String _elapsedTime = '0:00';
+  // Basket position
+  double _basketX = 0.5; // 0 to 1 (percentage of screen width)
+  
+  // Bird state
+  double _birdX = 0.0;
+  double _birdY = 0.35; // 50-20% from top = 20-50% as fraction
+  bool _birdMovingRight = true;
+  double _birdSpeed = 0.003;
+  
+  // Falling notes
+  List<FallingNote> _fallingNotes = [];
+  
+  // Timers
+  Timer? _gameTimer;
+  Timer? _birdTimer;
+  Timer? _dropTimer;
+  
+  // Accelerometer
+  StreamSubscription<AccelerometerEvent>? _accelerometerSubscription;
+  
+  // Audio
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  
+  // Flash effect
+  bool _showFlash = false;
+  Color _flashColor = Colors.green;
+  
+  // Level configuration
+  final List<Map<String, dynamic>> _levels = [
+    {'letter': 'A', 'basket': 'assets/images/Basket_A.webp', 'correctNote': 'noteA.png', 'correctNotes': ['noteA.png']},
+    {'letter': 'C', 'basket': 'assets/images/Basket_C.webp', 'correctNote': 'noteC.png', 'correctNotes': ['noteC.png']},
+    {'letter': 'F', 'basket': 'assets/images/Basket_F.webp', 'correctNote': 'noteF.png', 'correctNotes': ['noteF.png']},
+    {'letter': 'D', 'basket': 'assets/images/Basket_D.webp', 'correctNote': 'noteD.png', 'correctNotes': ['noteD.png', 'noteD2.png']},
+  ];
+  
+  final List<String> _allNotes = ['noteA.png', 'noteC.png', 'noteD.png', 'noteD2.png', 'noteE.png', 'noteF.png'];
+  final Random _random = Random();
+  
+  bool _showMessage = true;
+  bool _gameComplete = false;
 
   @override
   void initState() {
     super.initState();
     _loadTokens();
-    _initializeCards();
-    
-    // Initialize and start stopwatch
-    _stopwatch = Stopwatch();
-    _stopwatch.start();
-    _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      if (mounted) {
-        setState(() {
-          _elapsedTime = _formatTime(_stopwatch.elapsed);
-        });
-      }
-    });
+    _startGame();
     
     // Unlock this challenge when first accessed (not in replay mode)
     if (!widget.isReplay) {
       StorageService.unlockChallenge('notes_challenge');
     }
-  }
-  
-  String _formatTime(Duration duration) {
-    int minutes = duration.inMinutes;
-    int seconds = duration.inSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
   Future<void> _loadTokens() async {
@@ -62,81 +82,238 @@ class _NotesChallengeState extends State<NotesChallenge> with TickerProviderStat
     });
   }
 
-  void _initializeCards() {
-    List<MemoryCard> cards = [
-      MemoryCard(id: 0, content: '♩', type: CardType.emoji, pairId: 0),
-      MemoryCard(id: 1, content: 'Quarter Note', type: CardType.text, pairId: 0),
-      MemoryCard(id: 2, content: '♪', type: CardType.emoji, pairId: 1),
-      MemoryCard(id: 3, content: 'Eighth Note', type: CardType.text, pairId: 1),
-      MemoryCard(id: 4, content: '𝅝', type: CardType.emoji, pairId: 2),
-      MemoryCard(id: 5, content: 'Half Note', type: CardType.text, pairId: 2),
-      MemoryCard(id: 6, content: '𝅗𝅥', type: CardType.emoji, pairId: 3),
-      MemoryCard(id: 7, content: 'Whole Note', type: CardType.text, pairId: 3),
-      MemoryCard(id: 8, content: '♬', type: CardType.emoji, pairId: 4),
-      MemoryCard(id: 9, content: 'Beamed Notes', type: CardType.text, pairId: 4),
-    ];
+  void _startGame() {
+    // Show initial message
+    _showLevelMessage();
     
-    cards.shuffle();
-    setState(() {
-      _cards = cards;
-    });
-  }
-
-  void _onCardTapped(int index) {
-    if (_isChecking || 
-        _matchedIndices.contains(index) || 
-        _flippedIndices.contains(index) ||
-        _flippedIndices.length >= 2) {
-      return;
-    }
-
-    setState(() {
-      _flippedIndices.add(index);
-    });
-
-    if (_flippedIndices.length == 2) {
-      _checkForMatch();
-    }
-  }
-
-  Future<void> _checkForMatch() async {
-    setState(() {
-      _isChecking = true;
-    });
-
-    await Future.delayed(const Duration(milliseconds: 600));
-
-    int firstIndex = _flippedIndices[0];
-    int secondIndex = _flippedIndices[1];
-
-    if (_cards[firstIndex].pairId == _cards[secondIndex].pairId) {
-      // Match found!
-      setState(() {
-        _matchedIndices.add(firstIndex);
-        _matchedIndices.add(secondIndex);
-        _matchesFound++;
-      });
-
-      // Brief pause to show the match
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Check if game is complete
-      if (_matchesFound == _totalPairs) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        _onGameComplete();
+    // Start accelerometer
+    _accelerometerSubscription = accelerometerEventStream().listen((AccelerometerEvent event) {
+      if (!_gameComplete) {
+        setState(() {
+          // Use x-axis tilt to move basket (tilt left = negative, tilt right = positive)
+          _basketX = (_basketX - event.x * 0.01).clamp(0.0, 1.0);
+        });
       }
-    }
-
-    setState(() {
-      _flippedIndices.clear();
-      _isChecking = false;
     });
+    
+    // Start bird movement
+    _birdTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
+      if (!_gameComplete) {
+        _updateBird();
+      }
+    });
+    
+    // Start note dropping
+    _dropTimer = Timer.periodic(Duration(milliseconds: 1500 + _random.nextInt(1000)), (timer) {
+      if (!_gameComplete && !_showMessage) {
+        _dropNote();
+      }
+    });
+    
+    // Start game update loop
+    _gameTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
+      if (!_gameComplete) {
+        _updateGame();
+      }
+    });
+  }
+
+  void _showLevelMessage() {
+    setState(() {
+      _showMessage = true;
+    });
+    
+    String message = '';
+    if (_currentLevel == 0) {
+      message = 'Catch all the A-notes.\nAvoid the other notes!';
+    } else {
+      String letter = _levels[_currentLevel]['letter'];
+      message = 'Now catch the ${letter}s!';
+    }
+    
+    // Auto-hide message after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _showMessage = false;
+        });
+      }
+    });
+  }
+
+  void _updateBird() {
+    setState(() {
+      if (_birdMovingRight) {
+        _birdX += _birdSpeed;
+        if (_birdX >= 1.0) {
+          _birdX = 1.0;
+          _birdMovingRight = false;
+        }
+      } else {
+        _birdX -= _birdSpeed;
+        if (_birdX <= 0.0) {
+          _birdX = 0.0;
+          _birdMovingRight = true;
+        }
+      }
+      
+      // Randomly adjust Y position between 20% and 50%
+      if (_random.nextDouble() < 0.01) {
+        _birdY = 0.2 + _random.nextDouble() * 0.3;
+      }
+    });
+  }
+
+  void _dropNote() {
+    String randomNote;
+    
+    // 40% chance to drop the correct note for current level
+    if (_random.nextDouble() < 0.4) {
+      List<String> correctNotes = _levels[_currentLevel]['correctNotes'];
+      randomNote = correctNotes[_random.nextInt(correctNotes.length)];
+    } else {
+      // Drop a random note (might still be correct by chance)
+      randomNote = _allNotes[_random.nextInt(_allNotes.length)];
+    }
+    
+    setState(() {
+      _fallingNotes.add(FallingNote(
+        note: randomNote,
+        x: _birdX,
+        y: _birdY,
+      ));
+    });
+  }
+
+  void _updateGame() {
+    if (_fallingNotes.isEmpty) return;
+    
+    List<FallingNote> notesToRemove = [];
+    
+    setState(() {
+      for (var note in _fallingNotes) {
+        note.y += 0.005; // Fall speed
+        
+        // Check if note reached bottom
+        if (note.y >= 1.0) {
+          notesToRemove.add(note);
+        }
+        
+        // Check collision with basket - more generous hit detection
+        else if (note.y >= 0.82 && note.y <= 0.95) {
+          double basketLeft = _basketX - 0.12;  // Increased from 0.08
+          double basketRight = _basketX + 0.12;  // Increased from 0.08
+          
+          if (note.x >= basketLeft && note.x <= basketRight) {
+            notesToRemove.add(note);
+            _checkNoteCatch(note.note);
+          }
+        }
+      }
+      
+      _fallingNotes.removeWhere((note) => notesToRemove.contains(note));
+    });
+  }
+
+  void _checkNoteCatch(String caughtNote) {
+    List<String> correctNotes = _levels[_currentLevel]['correctNotes'];
+    bool isCorrect = correctNotes.contains(caughtNote);
+    
+    if (isCorrect) {
+      // Correct note caught
+      _playSound('bing');
+      _showFlashEffect(Colors.green);
+      
+      setState(() {
+        _correctCatches++;
+      });
+      
+      if (_correctCatches >= 5) {
+        _levelComplete();
+      }
+    } else {
+      // Wrong note caught
+      _playSound('baaah');
+      _showFlashEffect(Colors.red);
+    }
+  }
+
+  void _playSound(String sound) {
+    // Play sound effect
+    if (sound == 'bing') {
+      _audioPlayer.play(AssetSource('audio/correct.mp3'));
+    } else {
+      _audioPlayer.play(AssetSource('audio/wrong.mp3'));
+    }
+  }
+
+  void _showFlashEffect(Color color) {
+    setState(() {
+      _showFlash = true;
+      _flashColor = color;
+    });
+    
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) {
+        setState(() {
+          _showFlash = false;
+        });
+      }
+    });
+  }
+
+  void _levelComplete() {
+    if (_currentLevel < 3) {
+      // Move to next level
+      String letter = _levels[_currentLevel]['letter'];
+      
+      setState(() {
+        _currentLevel++;
+        _correctCatches = 0;
+        _showMessage = true;
+      });
+      
+      // Show congratulations message
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.green[700]!,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: Colors.yellow[600]!, width: 3),
+          ),
+          content: Text(
+            'Well done, you caught 5 ${letter}s!',
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+      
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          Navigator.of(context).pop();
+          _showLevelMessage();
+        }
+      });
+    } else {
+      // Game complete
+      _gameComplete = true;
+      _onGameComplete();
+    }
   }
 
   Future<void> _onGameComplete() async {
-    // Stop the timer
-    _stopwatch.stop();
-    _timer.cancel();
+    // Cancel all timers
+    _gameTimer?.cancel();
+    _birdTimer?.cancel();
+    _dropTimer?.cancel();
+    _accelerometerSubscription?.cancel();
     
     // Only award tokens if not in replay mode
     if (!widget.isReplay) {
@@ -148,19 +325,19 @@ class _NotesChallengeState extends State<NotesChallenge> with TickerProviderStat
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
-          backgroundColor: Colors.red[700]!,
+          backgroundColor: Colors.yellow[600]!,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: Colors.white, width: 3),
+            side: BorderSide(color: Colors.red[900]!, width: 3),
           ),
           content: Text(
             widget.isReplay
-                ? 'Perfect note reading!\nYou found all the pairs!\n\nTime: $_elapsedTime'
-                : 'Perfect note reading!\nYou found all the pairs!\n\nTime: $_elapsedTime\n\nYou get one token!\nYou now have a total of $_currentTokens tokens!',
-            style: const TextStyle(
+                ? 'You know your music notes already quite well. Good job!'
+                : 'You know your music notes already quite well. Good job!\n\nYou get an extra token!\nYou now have a total of $_currentTokens tokens!',
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: Colors.red[900],
             ),
             textAlign: TextAlign.center,
           ),
@@ -199,201 +376,198 @@ class _NotesChallengeState extends State<NotesChallenge> with TickerProviderStat
 
   @override
   void dispose() {
-    _timer.cancel();
-    _stopwatch.stop();
+    _gameTimer?.cancel();
+    _birdTimer?.cancel();
+    _dropTimer?.cancel();
+    _accelerometerSubscription?.cancel();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFDAA520),
-      appBar: AppBar(
-        title: const Text('The Musical Notes Challenge'),
-        backgroundColor: Colors.red[900],
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              const Text(
-                'Match the musical notes!',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFFB22222),
-                ),
-                textAlign: TextAlign.center,
+    final size = MediaQuery.of(context).size;
+    
+    return KeyboardListener(
+      focusNode: FocusNode()..requestFocus(),
+      autofocus: true,
+      onKeyEvent: (KeyEvent event) {
+        if (event is KeyDownEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+            setState(() {
+              _basketX = (_basketX - 0.05).clamp(0.0, 1.0);
+            });
+          } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+            setState(() {
+              _basketX = (_basketX + 0.05).clamp(0.0, 1.0);
+            });
+          }
+        }
+      },
+      child: Scaffold(
+      body: Stack(
+        children: [
+          // Background
+          Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/background_for_bird.webp'),
+                fit: BoxFit.cover,
               ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+            ),
+          ),
+          
+          // Flash effect
+          if (_showFlash)
+            Container(
+              color: _flashColor.withOpacity(0.3),
+            ),
+          
+          // Bird
+          Positioned(
+            left: _birdX * size.width - 60,
+            top: _birdY * size.height,
+            child: Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()..scale(_birdMovingRight ? -1.0 : 1.0, 1.0),
+              child: Image.asset(
+                'assets/images/bird.webp',
+                width: 120,
+                height: 120,
+              ),
+            ),
+          ),
+          
+          // Falling notes
+          ..._fallingNotes.map((note) => Positioned(
+            left: note.x * size.width - (35 * size.width / 400),
+            top: note.y * size.height,
+            child: Image.asset(
+              'assets/images/${note.note}',
+              width: 70 * size.width / 400,
+              height: 70 * size.width / 400,
+            ),
+          )).toList(),
+          
+          // Basket
+          Positioned(
+            left: _basketX * size.width - (45 * size.width / 400),
+            bottom: 20 * size.height / 800,
+            child: Image.asset(
+              _levels[_currentLevel]['basket'],
+              width: 90 * size.width / 400,
+              height: 90 * size.width / 400,
+            ),
+          ),
+          
+          // Score indicator
+          Positioned(
+            top: 50 * size.height / 800,
+            left: 20 * size.width / 400,
+            child: Container(
+              padding: EdgeInsets.all(12 * size.width / 400),
+              decoration: BoxDecoration(
+                color: Colors.yellow[600],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.red[900]!, width: 3),
+              ),
+              child: Column(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red[900]!, width: 2),
-                    ),
-                    child: Text(
-                      'Matches: $_matchesFound / $_totalPairs',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red[900],
-                      ),
+                  Text(
+                    'Catch ${_levels[_currentLevel]['letter']}',
+                    style: TextStyle(
+                      fontSize: 18 * size.width / 400,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red[900],
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red[900]!, width: 2),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.timer, color: Colors.red[900], size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          _elapsedTime,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red[900],
-                          ),
-                        ),
-                      ],
-                    ),
+                  SizedBox(height: 8 * size.height / 800),
+                  Row(
+                    children: List.generate(5, (index) => Container(
+                      margin: EdgeInsets.symmetric(horizontal: 2 * size.width / 400),
+                      width: 20 * size.width / 400,
+                      height: 20 * size.width / 400,
+                      decoration: BoxDecoration(
+                        color: index < _correctCatches ? Colors.green : Colors.grey[300],
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.red[900]!, width: 2),
+                      ),
+                    )),
                   ),
                 ],
               ),
-              const SizedBox(height: 30),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.4,
+            ),
+          ),
+          
+          // Level message
+          if (_showMessage)
+            Center(
+              child: Container(
+                padding: EdgeInsets.all(24 * size.width / 400),
+                margin: EdgeInsets.symmetric(horizontal: 40 * size.width / 400),
+                decoration: BoxDecoration(
+                  color: Colors.red[700],
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.yellow[600]!, width: 3),
+                ),
+                child: Text(
+                  _currentLevel == 0
+                      ? 'Catch all the A-notes.\nAvoid the other notes!'
+                      : 'Now catch the ${_levels[_currentLevel]['letter']}s!',
+                  style: TextStyle(
+                    fontSize: 24 * size.width / 400,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                  itemCount: _cards.length,
-                  itemBuilder: (context, index) {
-                    bool isFlipped = _flippedIndices.contains(index) || 
-                                     _matchedIndices.contains(index);
-                    bool isMatched = _matchedIndices.contains(index);
-
-                    return GestureDetector(
-                      onTap: () => _onCardTapped(index),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        transitionBuilder: (child, animation) {
-                          return ScaleTransition(
-                            scale: animation,
-                            child: child,
-                          );
-                        },
-                        child: isFlipped
-                            ? _buildCardFront(_cards[index], isMatched)
-                            : _buildCardBack(),
-                      ),
-                    );
-                  },
+                  textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(height: 20),
-            ],
+            ),
+          
+          // Debug buttons (remove these for Android release)
+          Positioned(
+            bottom: 20 * size.height / 800,
+            left: 20 * size.width / 400,
+            child: FloatingActionButton(
+              heroTag: 'left',
+              onPressed: () {
+                setState(() {
+                  _basketX = (_basketX - 0.05).clamp(0.0, 1.0);
+                });
+              },
+              backgroundColor: Colors.red[700],
+              child: Icon(Icons.arrow_back, size: 30 * size.width / 400, color: Colors.white),
+            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCardBack() {
-    return Container(
-      key: const ValueKey('back'),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.red[700]!, Colors.red[900]!],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Icon(
-          Icons.music_note,
-          size: 50,
-          color: Colors.white.withOpacity(0.5),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCardFront(MemoryCard card, bool isMatched) {
-    return Container(
-      key: ValueKey('front-${card.id}'),
-      decoration: BoxDecoration(
-        color: isMatched ? Colors.green[400] : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isMatched ? Colors.green[700]! : Colors.red[700]!,
-          width: 3,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+          Positioned(
+            bottom: 20 * size.height / 800,
+            right: 20 * size.width / 400,
+            child: FloatingActionButton(
+              heroTag: 'right',
+              onPressed: () {
+                setState(() {
+                  _basketX = (_basketX + 0.05).clamp(0.0, 1.0);
+                });
+              },
+              backgroundColor: Colors.red[700],
+              child: Icon(Icons.arrow_forward, size: 30 * size.width / 400, color: Colors.white),
+            ),
           ),
         ],
       ),
-      child: Center(
-        child: Text(
-          card.content,
-          style: TextStyle(
-            fontSize: card.type == CardType.emoji ? 50 : 20,
-            fontWeight: FontWeight.bold,
-            color: isMatched ? Colors.white : Colors.red[900],
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ),
+    ),
     );
   }
 }
 
-enum CardType {
-  text,
-  emoji,
-}
-
-class MemoryCard {
-  final int id;
-  final String content;
-  final CardType type;
-  final int pairId;
-
-  MemoryCard({
-    required this.id,
-    required this.content,
-    required this.type,
-    required this.pairId,
+class FallingNote {
+  String note;
+  double x;
+  double y;
+  
+  FallingNote({
+    required this.note,
+    required this.x,
+    required this.y,
   });
 }

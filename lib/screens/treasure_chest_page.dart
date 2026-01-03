@@ -395,24 +395,33 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
     );
   }
 
-  // 🎯 CHANGE #1: Made the video display smaller (max 200px instead of 350px)
+  // 🎯 UPDATED: Uneven cropping - cuts more from bottom, less from top
   Widget _buildVideoBox() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        double maxSize = constraints.maxWidth.clamp(120, 200); // ← Changed from 350 to 200
+        double maxSize = constraints.maxWidth.clamp(120, 200);
 
         return SizedBox(
           width: maxSize,
           height: maxSize,
           child: _isVideoInitialized
-              ? FittedBox(
-                  fit: BoxFit.contain,
-                  child: SizedBox(
-                    width: _videoController.value.size.width,
-                    height: _videoController.value.size.height,
-                    child: Container(
-                      color: Colors.transparent,
-                      child: VideoPlayer(_videoController),
+              ? ClipRect(
+                  child: OverflowBox(
+                    maxHeight: maxSize * 1.3, // Make video 1.5x taller than container
+                    child: Transform.translate(
+                      offset: Offset(0, -maxSize * -0.03), // Move up to cut less from top
+                      child: SizedBox(
+                        width: maxSize,
+                        height: maxSize * 1.5,
+                        child: FittedBox(
+                          fit: BoxFit.cover,
+                          child: SizedBox(
+                            width: _videoController.value.size.width,
+                            height: _videoController.value.size.height,
+                            child: VideoPlayer(_videoController),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 )

@@ -240,7 +240,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
         challengeScreen = const QuestionChallenge();
         break;
       case 6:
-        challengeScreen = const NotesChallenge();
+        challengeScreen = BirdNoteGame();
         break;
       case 7:
         challengeScreen = const GuardChallenge();

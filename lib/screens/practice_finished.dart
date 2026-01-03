@@ -1,7 +1,7 @@
 // ========== practice_finished.dart ==========
 import 'package:flutter/material.dart';
 import 'package:flutter_testapplication/screens/quest_selection_screen.dart';
-import 'package:video_player/video_player.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'challenges_list.dart';
 import 'parent_info.dart';
 import 'exit_screen.dart';
@@ -14,34 +14,29 @@ class PracticeFinished extends StatefulWidget {
 }
 
 class _PracticeFinishedState extends State<PracticeFinished> {
-  VideoPlayerController? _controller;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
-  void _playThankYouVideo() async {
-    _controller = VideoPlayerController.asset('assets/videos/Thanks.mp4');
-    
+  void _playThankYouAudio() async {
     try {
-      await _controller!.initialize();
-      await _controller!.play();
+      await _audioPlayer.play(AssetSource('audio/WeNeedParty.m4a'));
       
       // When audio finishes, go to exit screen
-      _controller!.addListener(() {
-        if (_controller!.value.position >= _controller!.value.duration) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const ExitScreen(),
-            ),
-          );
-        }
+      _audioPlayer.onPlayerComplete.listen((event) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ExitScreen(),
+          ),
+        );
       });
     } catch (e) {
-      print('Error initializing video: $e');
+      print('Error playing audio: $e');
     }
   }
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -138,7 +133,7 @@ class _PracticeFinishedState extends State<PracticeFinished> {
                       Expanded(
                         child: _buildCustomButton(
                           context: context,
-                          imagePath: 'assets/images/Play_more_button.png',
+                          imagePath: 'assets/images/Play_more_button.webp',
                           label: '...practice more',
                           buttonSize: buttonSize,
                           tooltip: 'Back to quest selection',
@@ -159,7 +154,7 @@ class _PracticeFinishedState extends State<PracticeFinished> {
                       Expanded(
                         child: _buildCustomButton(
                           context: context,
-                          imagePath: 'assets/images/Eartraining_and_Game_button.png',
+                          imagePath: 'assets/images/Eartraining_and_Game_button.webp',
                           label: '...do more challenges\nand ear training',
                           buttonSize: buttonSize,
                           tooltip: 'To the challenges',
@@ -184,7 +179,7 @@ class _PracticeFinishedState extends State<PracticeFinished> {
                           label: '...nothing, I am done,\nthank you!',
                           buttonSize: buttonSize,
                           tooltip: 'Goodbye',
-                          onPressed: _playThankYouVideo,
+                          onPressed: _playThankYouAudio,
                         ),
                       ),
                     ],
@@ -249,7 +244,3 @@ class _PracticeFinishedState extends State<PracticeFinished> {
     );
   }
 }
-
-// Video screen that plays Thanks.mp4
-// This is now removed - video plays in place on the main screen
-
