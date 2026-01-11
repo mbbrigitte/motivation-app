@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
 import 'dart:math';
+import 'dart:io' show Platform;
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_testapplication/services/storage_service.dart';
@@ -62,16 +64,29 @@ class _BirdNoteGameState extends State<BirdNoteGame> with TickerProviderStateMix
   
   bool _showMessage = true;
   bool _gameComplete = false;
+  bool _isAndroid = false;
 
   @override
   void initState() {
     super.initState();
+    _checkPlatform();
     _loadTokens();
     _startGame();
     
     // Unlock this challenge when first accessed (not in replay mode)
     if (!widget.isReplay) {
       StorageService.unlockChallenge('notes_challenge');
+    }
+  }
+
+  void _checkPlatform() {
+    // Check if running on Android
+    if (!kIsWeb) {
+      try {
+        _isAndroid = Platform.isAndroid;
+      } catch (e) {
+        _isAndroid = false;
+      }
     }
   }
 
@@ -125,14 +140,19 @@ class _BirdNoteGameState extends State<BirdNoteGame> with TickerProviderStateMix
     
     String message = '';
     if (_currentLevel == 0) {
-      message = 'Catch all the A-notes.\nAvoid the other notes!';
+      if (_isAndroid) {
+        message = 'Tilt your phone left and right to move the basket.\n\nCatch all the A-notes.\nAvoid the other notes!';
+      } else {
+        message = 'Catch all the A-notes.\nAvoid the other notes!';
+      }
     } else {
       String letter = _levels[_currentLevel]['letter'];
       message = 'Now catch the ${letter}s!';
     }
     
-    // Auto-hide message after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
+    // Auto-hide message after appropriate time
+    int displaySeconds = (_currentLevel == 0 && _isAndroid) ? 5 : 3;
+    Future.delayed(Duration(seconds: displaySeconds), () {
       if (mounted) {
         setState(() {
           _showMessage = false;
@@ -199,10 +219,10 @@ class _BirdNoteGameState extends State<BirdNoteGame> with TickerProviderStateMix
           notesToRemove.add(note);
         }
         
-        // Check collision with basket - more generous hit detection
-        else if (note.y >= 0.82 && note.y <= 0.95) {
-          double basketLeft = _basketX - 0.12;  // Increased from 0.08
-          double basketRight = _basketX + 0.12;  // Increased from 0.08
+        // Check collision with basket - adjusted for larger basket
+        else if (note.y >= 0.78 && note.y <= 0.95) {
+          double basketLeft = _basketX - 0.18;  // Increased for 2x basket
+          double basketRight = _basketX + 0.18;  // Increased for 2x basket
           
           if (note.x >= basketLeft && note.x <= basketRight) {
             notesToRemove.add(note);
@@ -423,40 +443,40 @@ class _BirdNoteGameState extends State<BirdNoteGame> with TickerProviderStateMix
               color: _flashColor.withOpacity(0.3),
             ),
           
-          // Bird
+          // Bird - MADE 20% BIGGER (144 instead of 120)
           Positioned(
-            left: _birdX * size.width - 60,
+            left: _birdX * size.width - 72,
             top: _birdY * size.height,
             child: Transform(
               alignment: Alignment.center,
               transform: Matrix4.identity()..scale(_birdMovingRight ? -1.0 : 1.0, 1.0),
               child: Image.asset(
                 'assets/images/bird.webp',
-                width: 120,
-                height: 120,
+                width: 144,
+                height: 144,
               ),
             ),
           ),
           
-          // Falling notes
+          // Falling notes - MADE BIGGER (100 instead of 70)
           ..._fallingNotes.map((note) => Positioned(
-            left: note.x * size.width - (35 * size.width / 400),
+            left: note.x * size.width - (50 * size.width / 400),
             top: note.y * size.height,
             child: Image.asset(
               'assets/images/${note.note}',
-              width: 70 * size.width / 400,
-              height: 70 * size.width / 400,
+              width: 100 * size.width / 400,
+              height: 100 * size.width / 400,
             ),
           )).toList(),
           
-          // Basket
+          // Basket - MADE 2X BIGGER (180 instead of 90)
           Positioned(
-            left: _basketX * size.width - (45 * size.width / 400),
+            left: _basketX * size.width - (90 * size.width / 400),
             bottom: 20 * size.height / 800,
             child: Image.asset(
               _levels[_currentLevel]['basket'],
-              width: 90 * size.width / 400,
-              height: 90 * size.width / 400,
+              width: 180 * size.width / 400,
+              height: 180 * size.width / 400,
             ),
           ),
           
@@ -492,6 +512,16 @@ class _BirdNoteGameState extends State<BirdNoteGame> with TickerProviderStateMix
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.red[900]!, width: 2),
                       ),
+                      child: Center(
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            fontSize: 12 * size.width / 400,
+                            fontWeight: FontWeight.bold,
+                            color: index < _correctCatches ? Colors.white : Colors.grey[600],
+                          ),
+                        ),
+                      ),
                     )),
                   ),
                 ],
@@ -512,10 +542,12 @@ class _BirdNoteGameState extends State<BirdNoteGame> with TickerProviderStateMix
                 ),
                 child: Text(
                   _currentLevel == 0
-                      ? 'Catch all the A-notes.\nAvoid the other notes!'
+                      ? (_isAndroid
+                          ? 'Tilt your phone left and right to move the basket.\n\nCatch all the A-notes.\nAvoid the other notes!'
+                          : 'Catch all the A-notes.\nAvoid the other notes!')
                       : 'Now catch the ${_levels[_currentLevel]['letter']}s!',
                   style: TextStyle(
-                    fontSize: 24 * size.width / 400,
+                    fontSize: 20 * size.width / 400,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
@@ -524,35 +556,37 @@ class _BirdNoteGameState extends State<BirdNoteGame> with TickerProviderStateMix
               ),
             ),
           
-          // Debug buttons (remove these for Android release)
-          Positioned(
-            bottom: 20 * size.height / 800,
-            left: 20 * size.width / 400,
-            child: FloatingActionButton(
-              heroTag: 'left',
-              onPressed: () {
-                setState(() {
-                  _basketX = (_basketX - 0.05).clamp(0.0, 1.0);
-                });
-              },
-              backgroundColor: Colors.red[700],
-              child: Icon(Icons.arrow_back, size: 30 * size.width / 400, color: Colors.white),
+          // Arrow buttons - ONLY SHOW ON NON-ANDROID (hidden on Android)
+          if (!_isAndroid) ...[
+            Positioned(
+              bottom: 20 * size.height / 800,
+              left: 20 * size.width / 400,
+              child: FloatingActionButton(
+                heroTag: 'left',
+                onPressed: () {
+                  setState(() {
+                    _basketX = (_basketX - 0.05).clamp(0.0, 1.0);
+                  });
+                },
+                backgroundColor: Colors.red[700],
+                child: Icon(Icons.arrow_back, size: 30 * size.width / 400, color: Colors.white),
+              ),
             ),
-          ),
-          Positioned(
-            bottom: 20 * size.height / 800,
-            right: 20 * size.width / 400,
-            child: FloatingActionButton(
-              heroTag: 'right',
-              onPressed: () {
-                setState(() {
-                  _basketX = (_basketX + 0.05).clamp(0.0, 1.0);
-                });
-              },
-              backgroundColor: Colors.red[700],
-              child: Icon(Icons.arrow_forward, size: 30 * size.width / 400, color: Colors.white),
+            Positioned(
+              bottom: 20 * size.height / 800,
+              right: 20 * size.width / 400,
+              child: FloatingActionButton(
+                heroTag: 'right',
+                onPressed: () {
+                  setState(() {
+                    _basketX = (_basketX + 0.05).clamp(0.0, 1.0);
+                  });
+                },
+                backgroundColor: Colors.red[700],
+                child: Icon(Icons.arrow_forward, size: 30 * size.width / 400, color: Colors.white),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     ),

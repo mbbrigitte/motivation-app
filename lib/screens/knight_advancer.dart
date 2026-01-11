@@ -36,7 +36,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
 
   double animatedXPercent = 0.5;
   double animatedYPercent = 0.9;
-  double animatedSizePercent = 0.08;
+  double animatedSizePercent = 0.9;
 
   // Track the last point we animated to (within the current 25-point journey)
   int lastAnimatedPointInJourney = 0;

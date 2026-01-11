@@ -260,7 +260,6 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
         backgroundColor: Colors.red[900],
       ),
 
-      // EVERYTHING SCROLLS NOW
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -301,12 +300,14 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
       children: [
         const SizedBox(height: 12),
         _buildTokenCounter(),
+        const SizedBox(height: 16),
+        _buildRedeemButton(),
         const SizedBox(height: 12),
         _buildProgressBar(),
         const SizedBox(height: 20),
         _buildVideoBox(),
         const SizedBox(height: 20),
-        _buildButtonsLeft(),
+        _buildDoneButton(),
       ],
     );
   }
@@ -337,7 +338,7 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        // Achievements with little icon
+        // Points with little icon
         Icon(Icons.local_florist, color: Colors.green, size: 20),
         const SizedBox(width: 4),
         Text(
@@ -348,6 +349,30 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildRedeemButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _showRedeemDialog,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.orange[700],
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: const Text(
+          'Redeem Tokens',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
     );
   }
 
@@ -395,7 +420,6 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
     );
   }
 
-  // 🎯 UPDATED: Uneven cropping - cuts more from bottom, less from top
   Widget _buildVideoBox() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -407,9 +431,9 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
           child: _isVideoInitialized
               ? ClipRect(
                   child: OverflowBox(
-                    maxHeight: maxSize * 1.3, // Make video 1.5x taller than container
+                    maxHeight: maxSize * 1.3,
                     child: Transform.translate(
-                      offset: Offset(0, -maxSize * -0.03), // Move up to cut less from top
+                      offset: Offset(0, -maxSize * -0.03),
                       child: SizedBox(
                         width: maxSize,
                         height: maxSize * 1.5,
@@ -431,39 +455,27 @@ class _TreasureChestPageState extends State<TreasureChestPage> {
     );
   }
 
-  Widget _buildButtonsLeft() {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton(
-            onPressed: _showRedeemDialog,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red[700],
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text('Redeem Tokens'),
+  Widget _buildDoneButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _navigateToKnightScreen,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green[700],
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: _navigateToKnightScreen,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green[700],
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text("View Knight's Journey"),
+        child: const Text(
+          'Done. Continue',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
           ),
         ),
-      ],
+      ),
     );
   }
 }

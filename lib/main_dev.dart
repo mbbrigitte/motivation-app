@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/challenges/animal_challenge.dart';
+import 'screens/challenges/opengates_challenge.dart';
 import 'services/storage_service.dart';
 
 void main() async {
@@ -26,12 +26,12 @@ class MyDevApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Dev - Animal Challenge',
+      title: 'Dev - Open Gates Challenge',
       theme: ThemeData(
         primarySwatch: Colors.red,
       ),
-      // Start directly with the Animal Challenge
-      home: const AnimalChallenge(isReplay: false),
+      // Start directly with the Open Gates Challenge
+      home: const OpenGatesChallenge(isReplay: false),
     );
   }
 }

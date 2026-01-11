@@ -40,7 +40,7 @@ class _AnimalChallengeState extends State<AnimalChallenge> with TickerProviderSt
     'Tiger': 'tiger.webp',
     'Mouse': 'mouse.webp',
     'Crocodile': 'croc.webp',
-    'Horse': 'horse.jpeg',
+    'Horse': 'horse.webp',
     'Elephant': 'elephant.webp',
     'Lion': 'Lion-removebg-preview.webp',
   };

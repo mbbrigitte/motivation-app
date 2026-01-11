@@ -25,6 +25,8 @@ class _PostureChallengeState extends State<PostureChallenge> with TickerProvider
   VideoPlayerController? _rightVideoController;
   bool _leftVideoInitialized = false;
   bool _rightVideoInitialized = false;
+  bool _leftVideoPlaying = false;
+  bool _rightVideoPlaying = false;
 
   @override
   void initState() {
@@ -63,6 +65,48 @@ class _PostureChallengeState extends State<PostureChallenge> with TickerProvider
     setState(() {
       _leftVideoInitialized = true;
       _rightVideoInitialized = true;
+    });
+  }
+
+  Future<void> _playLeftVideo() async {
+    await _leftVideoController!.seekTo(Duration.zero);
+    await _leftVideoController!.play();
+    
+    setState(() {
+      _leftVideoPlaying = true;
+    });
+    
+    // Listen for video end
+    _leftVideoController!.addListener(() {
+      if (_leftVideoController!.value.position >= _leftVideoController!.value.duration &&
+          _leftVideoController!.value.duration.inMilliseconds > 0) {
+        if (mounted) {
+          setState(() {
+            _leftVideoPlaying = false;
+          });
+        }
+      }
+    });
+  }
+
+  Future<void> _playRightVideo() async {
+    await _rightVideoController!.seekTo(Duration.zero);
+    await _rightVideoController!.play();
+    
+    setState(() {
+      _rightVideoPlaying = true;
+    });
+    
+    // Listen for video end
+    _rightVideoController!.addListener(() {
+      if (_rightVideoController!.value.position >= _rightVideoController!.value.duration &&
+          _rightVideoController!.value.duration.inMilliseconds > 0) {
+        if (mounted) {
+          setState(() {
+            _rightVideoPlaying = false;
+          });
+        }
+      }
     });
   }
 
@@ -299,12 +343,13 @@ class _PostureChallengeState extends State<PostureChallenge> with TickerProvider
           'Not quite, watch the two videos again.',
         );
       case 2:
+        // FLIPPED: Good on left, bad on right for this question
         return _buildImageQuestion(
           'Which position is better for practicing?',
-          'assets/images/sitting.webp',
           'assets/images/standing.webp',
-          'sitting',
+          'assets/images/sitting.webp',
           'standing',
+          'sitting',
           'Exactly! We can have better posture and play better when we stand.',
           'Sometimes, we need to sit because we play in an orchestra. But it is better to practice standing up.',
         );
@@ -505,7 +550,7 @@ class _PostureChallengeState extends State<PostureChallenge> with TickerProvider
   ) {
     final size = MediaQuery.of(context).size;
     final isSmallScreen = size.width < 600;
-    final videoHeight = isSmallScreen ? 150.0 : 200.0;
+    final videoHeight = (isSmallScreen ? 150.0 : 200.0) * (_leftVideoPlaying || _rightVideoPlaying ? 2.0 : 1.0);
     
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 500),
@@ -539,7 +584,8 @@ class _PostureChallengeState extends State<PostureChallenge> with TickerProvider
               Expanded(
                 child: Column(
                   children: [
-                    Container(
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
                       height: videoHeight,
                       decoration: BoxDecoration(
                         color: Colors.black,
@@ -560,12 +606,7 @@ class _PostureChallengeState extends State<PostureChallenge> with TickerProvider
                     ),
                     SizedBox(height: isSmallScreen ? 8 : 10),
                     ElevatedButton.icon(
-                      onPressed: _leftVideoInitialized
-                          ? () {
-                              _leftVideoController!.seekTo(Duration.zero);
-                              _leftVideoController!.play();
-                            }
-                          : null,
+                      onPressed: _leftVideoInitialized ? _playLeftVideo : null,
                       icon: Icon(Icons.play_arrow, size: isSmallScreen ? 18 : 24),
                       label: Text(
                         'Play Video',
@@ -607,7 +648,8 @@ class _PostureChallengeState extends State<PostureChallenge> with TickerProvider
               Expanded(
                 child: Column(
                   children: [
-                    Container(
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
                       height: videoHeight,
                       decoration: BoxDecoration(
                         color: Colors.black,
@@ -628,12 +670,7 @@ class _PostureChallengeState extends State<PostureChallenge> with TickerProvider
                     ),
                     SizedBox(height: isSmallScreen ? 8 : 10),
                     ElevatedButton.icon(
-                      onPressed: _rightVideoInitialized
-                          ? () {
-                              _rightVideoController!.seekTo(Duration.zero);
-                              _rightVideoController!.play();
-                            }
-                          : null,
+                      onPressed: _rightVideoInitialized ? _playRightVideo : null,
                       icon: Icon(Icons.play_arrow, size: isSmallScreen ? 18 : 24),
                       label: Text(
                         'Play Video',

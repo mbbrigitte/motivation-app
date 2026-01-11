@@ -1,0 +1,37 @@
+Knockrythm1.m4a has 11 knocks. The first one is at 9:008 (This should be shifted to 0, you can do the math), 
+1)9:008
+2)9:366
+3)10:052
+4)10:41
+5) 10:753
+6)11:455
+7) 11:813
+8) 12:171
+9) 12:873
+10) 13:216
+11) 13:590
+
+I only pasted 3 digits because I see them, but this would be too narrow, I don't think my eye ball 'measurements' are so accurate. 
+
+The second sound file Knockrythm2.m4a  is like this:
+1) 5:302
+2) 6:134
+3) 6:47
+4) 7:100
+5)  7:705
+6)  8:310
+7)  8:638
+8) 8:932
+
+
+
+After the knocking pattern is done, for each one, there is a question:
+What did this knocking rhythm remind you of? 
+AFor the first one, the coices are: 
+A: Song of the Wind B Go Tell Aunt Rhody C:O come, little Children (correct C).
+
+For the second one, the choices are:
+A Long, long Ago  B: May Song and C: Winter serenade (correct = May Song)
+
+
+After this, please do not load videos or anything, just show Well done etc dialog that i gave you, and then go to screen.  goal_reached.dart which is under screens/   (not under screens/challenges like the opengates_challenge.dart is.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-//import '../../services/storage_service.dart';
+import 'dart:math';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_testapplication/services/storage_service.dart';
 import '../practice_finished.dart';
 
@@ -13,46 +14,230 @@ class QuestionChallenge extends StatefulWidget {
   State<QuestionChallenge> createState() => _QuestionChallengeState();
 }
 
-class _QuestionChallengeState extends State<QuestionChallenge> with TickerProviderStateMixin {
+class _QuestionChallengeState extends State<QuestionChallenge> 
+    with TickerProviderStateMixin {
   int _currentTokens = 0;
-  List<MemoryCard> _cards = [];
-  List<int> _flippedIndices = [];
-  bool _isChecking = false;
-  Set<int> _matchedIndices = {};
-  int _matchesFound = 0;
-  final int _totalPairs = 5;
+  int _currentQuestion = 0;
+  int _correctAnswers = 0;
+  bool _hasAnswered = false;
+  bool _isPlaying = false;
+  String _feedbackMessage = '';
   
-  late Stopwatch _stopwatch;
-  late Timer _timer;
-  String _elapsedTime = '0:00';
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  
+  late AnimationController _pulseController;
+  late AnimationController _feedbackController;
+  
+  // Floating button positions and velocities
+  final Random _random = Random();
+  late Offset _happyPosition;
+  late Offset _sadPosition;
+  late Offset _happyVelocity;
+  late Offset _sadVelocity;
+  late Timer _floatingTimer;
+  final double _buttonSize = 100;
+  
+  // Question bank with audio files and correct answers
+  final List<Question> _questions = [
+    Question(audioPath: 'audio/Major.mp3', isMajor: true, name: 'Major Scale'),
+    Question(audioPath: 'audio/Major-Pentacord.mp3', isMajor: true, name: 'Major Pentacord'),
+    Question(audioPath: 'audio/Minor-Pentacord.mp3', isMajor: false, name: 'Minor Pentacord'),
+    Question(audioPath: 'audio/DMajor_Arpeggio.mp3', isMajor: true, name: 'D Major Arpeggio'),
+    Question(audioPath: 'audio/DMinor_Arpeggio.mp3', isMajor: false, name: 'D Minor Arpeggio'),
+    Question(audioPath: 'audio/AMinor_Arpeggio.mp3', isMajor: false, name: 'A Minor Arpeggio'),
+  ];
 
   @override
   void initState() {
     super.initState();
     _loadTokens();
-    _initializeCards();
+    _questions.shuffle();
     
-    // Initialize and start stopwatch
-    _stopwatch = Stopwatch();
-    _stopwatch.start();
-    _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      if (mounted) {
-        setState(() {
-          _elapsedTime = _formatTime(_stopwatch.elapsed);
-        });
-      }
-    });
+    // Animation controllers
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    )..repeat(reverse: true);
     
-    // Unlock this challenge when first accessed (not in replay mode)
+    _feedbackController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    
+    // Initialize floating button positions
+    _initializeFloatingButtons();
+    
+    // Unlock challenge
     if (!widget.isReplay) {
       StorageService.unlockChallenge('question_challenge');
     }
+    
+    // Show introduction dialog, then start
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showIntroDialog();
+    });
   }
   
-  String _formatTime(Duration duration) {
-    int minutes = duration.inMinutes;
-    int seconds = duration.inSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  void _initializeFloatingButtons() {
+    _happyPosition = Offset(_random.nextDouble() * 200 + 50, _random.nextDouble() * 200 + 200);
+    _sadPosition = Offset(_random.nextDouble() * 200 + 200, _random.nextDouble() * 200 + 200);
+    _happyVelocity = Offset(_random.nextDouble() * 2 + 1, _random.nextDouble() * 2 + 1);
+    _sadVelocity = Offset(_random.nextDouble() * 2 + 1, _random.nextDouble() * 2 + 1);
+    
+    _floatingTimer = Timer.periodic(const Duration(milliseconds: 16), (timer) {
+      if (mounted) {
+        _updateFloatingButtons();
+      }
+    });
+  }
+  
+  void _updateFloatingButtons() {
+    setState(() {
+      // Update positions
+      _happyPosition += _happyVelocity;
+      _sadPosition += _sadVelocity;
+      
+      // Get screen bounds
+      final size = MediaQuery.of(context).size;
+      final maxX = size.width - _buttonSize;
+      final maxY = size.height - _buttonSize - 200; // Account for header
+      
+      // Bounce off walls
+      if (_happyPosition.dx <= 0 || _happyPosition.dx >= maxX) {
+        _happyVelocity = Offset(-_happyVelocity.dx, _happyVelocity.dy);
+        _happyPosition = Offset(_happyPosition.dx.clamp(0, maxX), _happyPosition.dy);
+      }
+      if (_happyPosition.dy <= 0 || _happyPosition.dy >= maxY) {
+        _happyVelocity = Offset(_happyVelocity.dx, -_happyVelocity.dy);
+        _happyPosition = Offset(_happyPosition.dx, _happyPosition.dy.clamp(0, maxY));
+      }
+      
+      if (_sadPosition.dx <= 0 || _sadPosition.dx >= maxX) {
+        _sadVelocity = Offset(-_sadVelocity.dx, _sadVelocity.dy);
+        _sadPosition = Offset(_sadPosition.dx.clamp(0, maxX), _sadPosition.dy);
+      }
+      if (_sadPosition.dy <= 0 || _sadPosition.dy >= maxY) {
+        _sadVelocity = Offset(_sadVelocity.dx, -_sadVelocity.dy);
+        _sadPosition = Offset(_sadPosition.dx, _sadPosition.dy.clamp(0, maxY));
+      }
+    });
+  }
+  
+  void _showIntroDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFFDAA520),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.red[900]!, width: 3),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Text(
+                'Well done so far. You have more questions to answer!',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red[900],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Have you heard of Major and Minor?',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red[900],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'This is knight Major.\nMajor uses notes that sound open and bright.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red[900],
+                      ),
+                      textAlign: TextAlign.left,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'This is knight Minor.\nMinor uses notes that sound more serious or sad.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red[900],
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      'assets/images/happy_sad.webp',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  // Happy face on top left
+                  Positioned(
+                    left: 20,
+                    top: 20,
+                    child: const Text('😊', style: TextStyle(fontSize: 40)),
+                  ),
+                  // Sad face on top right
+                  Positioned(
+                    right: 20,
+                    top: 20,
+                    child: const Text('😢', style: TextStyle(fontSize: 40)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          Center(
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _playCurrentQuestion();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[900],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                "Let's Start!",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadTokens() async {
@@ -62,83 +247,87 @@ class _QuestionChallengeState extends State<QuestionChallenge> with TickerProvid
     });
   }
 
-  void _initializeCards() {
-    List<MemoryCard> cards = [
-      MemoryCard(id: 0, content: 'Question', type: CardType.text, pairId: 0),
-      MemoryCard(id: 1, content: 'Answer', type: CardType.text, pairId: 0),
-      MemoryCard(id: 2, content: 'Mystery', type: CardType.text, pairId: 1),
-      MemoryCard(id: 3, content: 'Solution', type: CardType.text, pairId: 1),
-      MemoryCard(id: 4, content: '❓', type: CardType.emoji, pairId: 2),
-      MemoryCard(id: 5, content: '❗', type: CardType.emoji, pairId: 2),
-      MemoryCard(id: 6, content: 'Puzzle', type: CardType.text, pairId: 3),
-      MemoryCard(id: 7, content: 'Solved', type: CardType.text, pairId: 3),
-      MemoryCard(id: 8, content: 'Think', type: CardType.text, pairId: 4),
-      MemoryCard(id: 9, content: 'Know', type: CardType.text, pairId: 4),
-    ];
+  Future<void> _playCurrentQuestion() async {
+    if (_currentQuestion >= _questions.length) return;
     
-    cards.shuffle();
     setState(() {
-      _cards = cards;
+      _isPlaying = true;
     });
+    
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.play(AssetSource(_questions[_currentQuestion].audioPath));
+      
+      _audioPlayer.onPlayerComplete.listen((_) {
+        if (mounted) {
+          setState(() {
+            _isPlaying = false;
+          });
+        }
+      });
+    } catch (e) {
+      print('Error playing audio: $e');
+      setState(() {
+        _isPlaying = false;
+      });
+    }
   }
 
-  void _onCardTapped(int index) {
-    if (_isChecking || 
-        _matchedIndices.contains(index) || 
-        _flippedIndices.contains(index) ||
-        _flippedIndices.length >= 2) {
+  void _onAnswerSelected(bool selectedMajor) async {
+    if (_hasAnswered) return;
+    
+    setState(() {
+      _hasAnswered = true;
+    });
+    
+    await _audioPlayer.stop();
+    
+    bool isCorrect = selectedMajor == _questions[_currentQuestion].isMajor;
+    
+    if (isCorrect) {
+      _correctAnswers++;
+      setState(() {
+        _feedbackMessage = selectedMajor 
+            ? "Yes, it is Major! You heard that it sounds quite happy. 😊"
+            : "Yes, it is Minor! You heard that it sounds a bit sad. 😢";
+      });
+      _feedbackController.forward(from: 0);
+    } else {
+      setState(() {
+        _feedbackMessage = "Not quite, try again! 🎵";
+      });
+      _feedbackController.forward(from: 0);
+      
+      // Allow retry - don't count as answered
+      await Future.delayed(const Duration(milliseconds: 2000));
+      setState(() {
+        _hasAnswered = false;
+        _feedbackMessage = '';
+      });
       return;
     }
-
-    setState(() {
-      _flippedIndices.add(index);
-    });
-
-    if (_flippedIndices.length == 2) {
-      _checkForMatch();
-    }
-  }
-
-  Future<void> _checkForMatch() async {
-    setState(() {
-      _isChecking = true;
-    });
-
-    await Future.delayed(const Duration(milliseconds: 600));
-
-    int firstIndex = _flippedIndices[0];
-    int secondIndex = _flippedIndices[1];
-
-    if (_cards[firstIndex].pairId == _cards[secondIndex].pairId) {
-      // Match found!
-      setState(() {
-        _matchedIndices.add(firstIndex);
-        _matchedIndices.add(secondIndex);
-        _matchesFound++;
-      });
-
-      // Brief pause to show the match
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      // Check if game is complete
-      if (_matchesFound == _totalPairs) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        _onGameComplete();
-      }
-    }
-
-    setState(() {
-      _flippedIndices.clear();
-      _isChecking = false;
-    });
-  }
-
-  Future<void> _onGameComplete() async {
-    // Stop the timer
-    _stopwatch.stop();
-    _timer.cancel();
     
-    // Only award tokens if not in replay mode
+    await Future.delayed(const Duration(milliseconds: 2500));
+    
+    setState(() {
+      _feedbackMessage = '';
+    });
+    
+    if (_currentQuestion < _questions.length - 1) {
+      setState(() {
+        _currentQuestion++;
+        _hasAnswered = false;
+      });
+      _playCurrentQuestion();
+    } else {
+      _onChallengeComplete();
+    }
+  }
+
+  Future<void> _onChallengeComplete() async {
+    _floatingTimer.cancel();
+    await _audioPlayer.stop();
+    
     if (!widget.isReplay) {
       await _addToken();
     }
@@ -155,8 +344,8 @@ class _QuestionChallengeState extends State<QuestionChallenge> with TickerProvid
           ),
           content: Text(
             widget.isReplay
-                ? 'You solved all the mysteries!\nYou found all the pairs!\n\nTime: $_elapsedTime'
-                : 'You solved all the mysteries!\nYou found all the pairs!\n\nTime: $_elapsedTime\n\nYou get one token!\nYou now have a total of $_currentTokens tokens!',
+                ? 'Challenge Complete!\n\nScore: $_correctAnswers/${_questions.length}'
+                : 'Challenge Complete!\n\nScore: $_correctAnswers/${_questions.length}\n\nYou earned 1 token!\nTotal tokens: $_currentTokens',
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -199,201 +388,309 @@ class _QuestionChallengeState extends State<QuestionChallenge> with TickerProvid
 
   @override
   void dispose() {
-    _timer.cancel();
-    _stopwatch.stop();
+    _floatingTimer.cancel();
+    _audioPlayer.dispose();
+    _pulseController.dispose();
+    _feedbackController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isSmallScreen = size.width < 400;
+    
     return Scaffold(
       backgroundColor: const Color(0xFFDAA520),
       appBar: AppBar(
-        title: const Text('The Question Mark Challenge'),
+        title: Text(
+          'Major vs Minor Challenge',
+          style: TextStyle(fontSize: isSmallScreen ? 18 : 22),
+        ),
         backgroundColor: Colors.red[900],
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              const Text(
-                'Match the questions with answers!',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFFB22222),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red[900]!, width: 2),
-                    ),
-                    child: Text(
-                      'Matches: $_matchesFound / $_totalPairs',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red[900],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red[900]!, width: 2),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.timer, color: Colors.red[900], size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          _elapsedTime,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red[900],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 30),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.4,
-                  ),
-                  itemCount: _cards.length,
-                  itemBuilder: (context, index) {
-                    bool isFlipped = _flippedIndices.contains(index) || 
-                                     _matchedIndices.contains(index);
-                    bool isMatched = _matchedIndices.contains(index);
-
-                    return GestureDetector(
-                      onTap: () => _onCardTapped(index),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        transitionBuilder: (child, animation) {
-                          return ScaleTransition(
-                            scale: animation,
-                            child: child,
-                          );
-                        },
-                        child: isFlipped
-                            ? _buildCardFront(_cards[index], isMatched)
-                            : _buildCardBack(),
-                      ),
-                    );
-                  },
+      body: SafeArea(
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.all(size.width * 0.05),
+                child: Column(
+                  children: [
+                    _buildHeader(size, isSmallScreen),
+                    SizedBox(height: size.height * 0.02),
+                    _buildQuestionArea(size, isSmallScreen),
+                    if (_feedbackMessage.isNotEmpty) ...[
+                      SizedBox(height: size.height * 0.02),
+                      _buildFeedback(size),
+                    ],
+                    SizedBox(height: size.height * 0.4),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+            // Floating answer buttons
+            if (!_hasAnswered || _feedbackMessage == "Not quite, try again! 🎵")
+              ..._buildFloatingButtons(),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildCardBack() {
+  Widget _buildHeader(Size size, bool isSmallScreen) {
+    return Column(
+      children: [
+        Text(
+          'Does this sound happy or sad?',
+          style: TextStyle(
+            fontSize: isSmallScreen ? 20 : 24,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFFB22222),
+          ),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: size.height * 0.02),
+        Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: isSmallScreen ? 12 : 16,
+            vertical: isSmallScreen ? 8 : 10,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.red[900]!, width: 2),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.music_note, color: Colors.red[900], size: isSmallScreen ? 18 : 20),
+              const SizedBox(width: 8),
+              Text(
+                'Question: ${_currentQuestion + 1}/${_questions.length}',
+                style: TextStyle(
+                  fontSize: isSmallScreen ? 14 : 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red[900],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuestionArea(Size size, bool isSmallScreen) {
     return Container(
-      key: const ValueKey('back'),
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: size.width * 0.04,
+        vertical: size.height * 0.02,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [Colors.red[700]!, Colors.red[900]!],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white, width: 3),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
-      child: Center(
-        child: Icon(
-          Icons.music_note,
-          size: 50,
-          color: Colors.white.withOpacity(0.5),
-        ),
+      child: Column(
+        children: [
+          AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _isPlaying ? 1.0 + (_pulseController.value * 0.1) : 1.0,
+                child: Icon(
+                  _isPlaying ? Icons.volume_up : Icons.play_circle_outline,
+                  size: isSmallScreen ? 40 : 50,
+                  color: Colors.white,
+                ),
+              );
+            },
+          ),
+          SizedBox(height: size.height * 0.01),
+          Text(
+            _isPlaying ? 'Listening...' : 'Tap to replay',
+            style: TextStyle(
+              fontSize: isSmallScreen ? 14 : 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          SizedBox(height: size.height * 0.008),
+          ElevatedButton.icon(
+            onPressed: _isPlaying || _hasAnswered ? null : _playCurrentQuestion,
+            icon: const Icon(Icons.replay, size: 18),
+            label: const Text('Replay'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.red[900],
+              padding: EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 12 : 16,
+                vertical: isSmallScreen ? 6 : 8,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildCardFront(MemoryCard card, bool isMatched) {
-    return Container(
-      key: ValueKey('front-${card.id}'),
-      decoration: BoxDecoration(
-        color: isMatched ? Colors.green[400] : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isMatched ? Colors.green[700]! : Colors.red[700]!,
-          width: 3,
+  Widget _buildFeedback(Size size) {
+    return AnimatedBuilder(
+      animation: _feedbackController,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: 0.8 + (_feedbackController.value * 0.2),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _feedbackMessage.contains("Yes") 
+                  ? Colors.green[600] 
+                  : Colors.orange[700],
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Text(
+              _feedbackMessage,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  List<Widget> _buildFloatingButtons() {
+    return [
+      Positioned(
+        left: _happyPosition.dx,
+        top: _happyPosition.dy + 100,
+        child: _build3DButton(
+          emoji: '😊',
+          label: 'Happy',
+          color: Colors.amber[600]!,
+          isMajor: true,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
-      child: Center(
-        child: Text(
-          card.content,
-          style: TextStyle(
-            fontSize: card.type == CardType.emoji ? 50 : 24,
-            fontWeight: FontWeight.bold,
-            color: isMatched ? Colors.white : Colors.red[900],
+      Positioned(
+        left: _sadPosition.dx,
+        top: _sadPosition.dy + 100,
+        child: _build3DButton(
+          emoji: '😢',
+          label: 'Sad',
+          color: Colors.blue[700]!,
+          isMajor: false,
+        ),
+      ),
+    ];
+  }
+
+  Widget _build3DButton({
+    required String emoji,
+    required String label,
+    required Color color,
+    required bool isMajor,
+  }) {
+    return GestureDetector(
+      onTap: () => _onAnswerSelected(isMajor),
+      child: Container(
+        width: _buttonSize,
+        height: _buttonSize,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              color.withOpacity(0.8),
+              color,
+              color.withOpacity(0.6),
+            ],
+            stops: const [0.0, 0.6, 1.0],
+            center: const Alignment(-0.3, -0.3),
           ),
-          textAlign: TextAlign.center,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.4),
+              blurRadius: 12,
+              offset: const Offset(4, 8),
+            ),
+            BoxShadow(
+              color: color.withOpacity(0.5),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(0.3),
+                Colors.transparent,
+                Colors.black.withOpacity(0.2),
+              ],
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                emoji,
+                style: const TextStyle(fontSize: 40),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                isMajor ? 'Major' : 'Minor',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-enum CardType {
-  text,
-  emoji,
-}
+class Question {
+  final String audioPath;
+  final bool isMajor;
+  final String name;
 
-class MemoryCard {
-  final int id;
-  final String content;
-  final CardType type;
-  final int pairId;
-
-  MemoryCard({
-    required this.id,
-    required this.content,
-    required this.type,
-    required this.pairId,
+  Question({
+    required this.audioPath,
+    required this.isMajor,
+    required this.name,
   });
 }

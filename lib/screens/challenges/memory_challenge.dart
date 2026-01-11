@@ -72,8 +72,8 @@ class _MemoryChallengeState extends State<MemoryChallenge> with TickerProviderSt
       MemoryCard(id: 5, content: 'Violin', type: CardType.text, pairId: 2),
       MemoryCard(id: 6, content: '♩', type: CardType.emoji, pairId: 3),
       MemoryCard(id: 7, content: 'Quarter note', type: CardType.text, pairId: 3),
-      MemoryCard(id: 8, content: 'Pepperoni pizza rhythm', type: CardType.text, pairId: 4),
-      MemoryCard(id: 9, content: 'Twinkle', type: CardType.text, pairId: 4),
+      MemoryCard(id: 8, content: 'Pizzicato', type: CardType.text, pairId: 4),
+      MemoryCard(id: 9, content: 'Plucking the string', type: CardType.text, pairId: 4),
     ];
     
     cards.shuffle();

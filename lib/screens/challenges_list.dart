@@ -46,13 +46,13 @@ class _ChallengesListState extends State<ChallengesList> {
     ChallengeItem(
       id: 'posture_challenge',
       title: 'Journey to the Violinist',
-      description: 'Match posture pairs correctly',
+      description: 'Learn correct posture',
       icon: Icons.accessibility_new,
     ),
     ChallengeItem(
       id: 'bach_challenge',
       title: 'Visit Johann Sebastian Bach',
-      description: 'Complete the Bach challenge',
+      description: 'Answer Bach`s trivia questions',
       icon: Icons.piano,
     ),
     ChallengeItem(
@@ -64,7 +64,7 @@ class _ChallengesListState extends State<ChallengesList> {
     ChallengeItem(
       id: 'listening_challenge',
       title: 'Journey to the Magical Bird',
-      description: 'Match musical terms and dynamics',
+      description: 'Listen and play back',
       icon: Icons.hearing,
     ),
     ChallengeItem(
@@ -76,7 +76,7 @@ class _ChallengesListState extends State<ChallengesList> {
     ChallengeItem(
       id: 'notes_challenge',
       title: 'Journey Along Music',
-      description: 'Match musical notes',
+      description: 'Catch musical notes',
       icon: Icons.library_music,
     ),
     ChallengeItem(
@@ -88,7 +88,7 @@ class _ChallengesListState extends State<ChallengesList> {
     ChallengeItem(
       id: 'memory_challenge',
       title: 'Climb to the Castle',
-      description: 'Test your musical memory',
+      description: 'Test your musical knowledge',
       icon: Icons.lightbulb_outline,
     ),
     ChallengeItem(

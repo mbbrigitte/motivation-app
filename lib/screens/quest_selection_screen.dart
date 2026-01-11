@@ -47,7 +47,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Quests to Choose From',
+                          'Choose your quests',
                           textAlign: TextAlign.center,
                           softWrap: true,
                           style: const TextStyle(

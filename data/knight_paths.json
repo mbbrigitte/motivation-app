@@ -1057,7 +1057,7 @@
       ]
     },
     "castle": {
-      "image": "assets/images/Background9_castle.jpeg",
+      "image": "assets/images/Background9_castle.webp",
       "title": "Climb to the castle",
       "challenge": "memory_challenge",
       "waypoints": [

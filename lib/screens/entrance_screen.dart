@@ -3,6 +3,7 @@ import 'package:video_player/video_player.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 import 'quest_selection_screen.dart';
+import 'package:flutter_testapplication/services/storage_service.dart';
 
 class EntranceScreen extends StatefulWidget {
   const EntranceScreen({super.key});
@@ -21,12 +22,29 @@ class _EntranceScreenState extends State<EntranceScreen> {
   Timer? _fadeTimer;
   Timer? _knightTimer;
   Timer? _endTimer;
+  
+  // Tutorial state
+  bool _showTutorial = false;
+  int _tutorialPage = 0;
+  bool _isCheckingFirstTime = true;
 
   @override
   void initState() {
     super.initState();
+    _checkFirstTimeUser();
     _initializeAudioPlayers();
     _initializeVideo();
+  }
+
+  Future<void> _checkFirstTimeUser() async {
+    // Check if user has 0 tokens and 0 total tokens (first time)
+    int tokens = await StorageService.loadTokens();
+    int totalTokens = await StorageService.loadTotalTokens();
+    
+    setState(() {
+      _showTutorial = (tokens == 0 && totalTokens == 0);
+      _isCheckingFirstTime = false;
+    });
   }
 
   // Configure audio players for Android compatibility
@@ -46,7 +64,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
             stayAwake: true,
             contentType: AndroidContentType.music,
             usageType: AndroidUsageType.media,
-            audioFocus: AndroidAudioFocus.none, // Don't steal focus from video!
+            audioFocus: AndroidAudioFocus.none,
           ),
         ),
       );
@@ -64,7 +82,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
             stayAwake: true,
             contentType: AndroidContentType.speech,
             usageType: AndroidUsageType.media,
-            audioFocus: AndroidAudioFocus.none, // Don't steal focus from video!
+            audioFocus: AndroidAudioFocus.none,
           ),
         ),
       );
@@ -118,28 +136,23 @@ class _EntranceScreenState extends State<EntranceScreen> {
       _videoController.removeListener(_videoListener);
       await _videoController.seekTo(Duration.zero);
 
-      // Delay to avoid Android returning position==duration
       await Future.delayed(const Duration(milliseconds: 100));
       _videoController.addListener(_videoListener);
 
       await _videoController.play();
 
-      // CRITICAL: Add delay before starting audio to prevent Android media session conflict
       await Future.delayed(const Duration(milliseconds: 300));
     }
 
-    // Start violin audio after video has established its audio session
     await _violinPlayer.play(AssetSource('audio/intro1.mp3'));
     await _violinPlayer.seek(const Duration(seconds: 2));
     await _violinPlayer.setVolume(1.0);
 
-    // Play knight audio after 7 seconds and fade violin
     _knightTimer = Timer(const Duration(seconds: 7), () async {
       await _knightPlayer.play(AssetSource('audio/Audio_knight.m4a'));
       _startViolinFade();
     });
 
-    // Navigate to quest selection after 18 seconds
     _endTimer = Timer(const Duration(seconds: 18), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -166,9 +179,237 @@ class _EntranceScreenState extends State<EntranceScreen> {
     });
   }
 
+  void _closeTutorial() {
+    setState(() {
+      _showTutorial = false;
+    });
+  }
+
+  Widget _buildTutorialContent() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    final List<Map<String, dynamic>> tutorialPages = [
+      {
+        'icon': Icons.music_note,
+        'title': 'Welcome to Violin Practice!',
+        'text': 'This app helps you practice violin and makes it fun!',
+      },
+      {
+        'icon': Icons.timer,
+        'title': 'Choose Your Practice Time',
+        'text': 'First, decide how long you want to practice.\nFor example: 30 minutes!',
+      },
+      {
+        'icon': Icons.stars,
+        'title': 'Earn Tokens & Points',
+        'text': 'When you practice, you earn tokens and points!\nThe more you practice, the more you get!',
+      },
+      {
+        'icon': Icons.videogame_asset,
+        'title': 'Unlock Fun Games',
+        'text': 'Reach milestones to unlock games that help with ear training and music theory!',
+      },
+      {
+        'icon': Icons.card_giftcard,
+        'title': 'Collect & Redeem',
+        'text': 'After practicing, you can collect your tokens and redeem them for rewards!',
+      },
+      {
+        'icon': Icons.play_arrow,
+        'title': 'Ready to Start?',
+        'text': 'Let\'s begin your musical journey!\nPress "Start" to meet your guide!',
+      },
+    ];
+
+    final currentPage = tutorialPages[_tutorialPage];
+
+    return Container(
+      color: Colors.black87,
+      child: Center(
+        child: Container(
+          width: screenWidth * 0.85,
+          padding: EdgeInsets.all(screenWidth * 0.06),
+          decoration: BoxDecoration(
+            color: const Color(0xFFDAA520),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFB22222), width: 4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.5),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon
+              Container(
+                padding: EdgeInsets.all(screenWidth * 0.04),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFB22222),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  currentPage['icon'] as IconData,
+                  size: screenWidth * 0.15,
+                  color: Colors.white,
+                ),
+              ),
+              
+              SizedBox(height: screenHeight * 0.03),
+              
+              // Title
+              Text(
+                currentPage['title'] as String,
+                style: TextStyle(
+                  fontSize: screenWidth * 0.06,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFFB22222),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
+              SizedBox(height: screenHeight * 0.02),
+              
+              // Description
+              Text(
+                currentPage['text'] as String,
+                style: TextStyle(
+                  fontSize: screenWidth * 0.045,
+                  color: Colors.black87,
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
+              SizedBox(height: screenHeight * 0.04),
+              
+              // Page indicators
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  tutorialPages.length,
+                  (index) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: index == _tutorialPage ? 12 : 8,
+                    height: index == _tutorialPage ? 12 : 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: index == _tutorialPage
+                          ? const Color(0xFFB22222)
+                          : Colors.grey[400],
+                    ),
+                  ),
+                ),
+              ),
+              
+              SizedBox(height: screenHeight * 0.03),
+              
+              // Navigation buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Previous button
+                  if (_tutorialPage > 0)
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _tutorialPage--;
+                        });
+                      },
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: screenWidth * 0.04,
+                          vertical: screenHeight * 0.015,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.arrow_back, color: Color(0xFFB22222)),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Back',
+                            style: TextStyle(
+                              fontSize: screenWidth * 0.04,
+                              color: const Color(0xFFB22222),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 80),
+                  
+                  // Skip button
+                  TextButton(
+                    onPressed: _closeTutorial,
+                    child: Text(
+                      'Skip',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.04,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                  
+                  // Next/Done button
+                  ElevatedButton(
+                    onPressed: () {
+                      if (_tutorialPage < tutorialPages.length - 1) {
+                        setState(() {
+                          _tutorialPage++;
+                        });
+                      } else {
+                        _closeTutorial();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFB22222),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenWidth * 0.04,
+                        vertical: screenHeight * 0.015,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          _tutorialPage < tutorialPages.length - 1 ? 'Next' : 'Done',
+                          style: TextStyle(
+                            fontSize: screenWidth * 0.04,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Icon(
+                          _tutorialPage < tutorialPages.length - 1
+                              ? Icons.arrow_forward
+                              : Icons.check,
+                          color: Colors.white,
+                          size: screenWidth * 0.05,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (!_isVideoInitialized) {
+    if (!_isVideoInitialized || _isCheckingFirstTime) {
       return const Scaffold(
         backgroundColor: Color(0xFFDAA520),
         body: Center(
@@ -198,45 +439,46 @@ class _EntranceScreenState extends State<EntranceScreen> {
           ),
           
           // Skip button
-          Positioned(
-            top: 40,
-            right: 20,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => const QuestSelectionScreen(),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF8B0000),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
-                ),
-                elevation: 5,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Text(
-                    'Skip',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+          if (!_showTutorial)
+            Positioned(
+              top: 40,
+              right: 20,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (context) => const QuestSelectionScreen(),
                     ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF8B0000),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
                   ),
-                  SizedBox(width: 5),
-                  Icon(Icons.fast_forward, size: 20),
-                ],
+                  elevation: 5,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Text(
+                      'Skip',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(width: 5),
+                    Icon(Icons.fast_forward, size: 20),
+                  ],
+                ),
               ),
             ),
-          ),
           
           // Start button overlay
-          if (!_isPlaying)
+          if (!_isPlaying && !_showTutorial)
             Container(
               color: Colors.black54,
               child: Center(
@@ -268,6 +510,10 @@ class _EntranceScreenState extends State<EntranceScreen> {
                 ),
               ),
             ),
+          
+          // Tutorial overlay
+          if (_showTutorial)
+            _buildTutorialContent(),
         ],
       ),
     );
