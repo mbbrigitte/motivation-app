@@ -94,7 +94,7 @@ class _ChallengesListState extends State<ChallengesList> {
     ChallengeItem(
       id: 'opengates_challenge',
       title: 'The Castle',
-      description: 'Open the castle gates',
+      description: 'Open the castle gates with the right knock',
       icon: Icons.castle,
     ),
   ];

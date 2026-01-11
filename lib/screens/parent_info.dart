@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import '../services/storage_service.dart';
 
 class ParentInfo extends StatefulWidget {
@@ -37,6 +38,210 @@ class _ParentInfoState extends State<ParentInfo> {
     });
   }
 
+  Future<void> _showRemoveTokensDialog() async {
+    final tokensController = TextEditingController();
+    final pointsController = TextEditingController();
+
+    final result = await showDialog<Map<String, int>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Tokens & Points'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'How many would you like to remove?',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: tokensController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Tokens to remove',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: pointsController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Points to remove',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final tokens = int.tryParse(tokensController.text) ?? 0;
+              final points = int.tryParse(pointsController.text) ?? 0;
+              
+              if (tokens > 0 || points > 0) {
+                Navigator.pop(context, {'tokens': tokens, 'points': points});
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange[700],
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Next'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null) {
+      _confirmRemoval(result['tokens']!, result['points']!);
+    }
+  }
+
+  Future<void> _confirmRemoval(int tokensToRemove, int pointsToRemove) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Removal'),
+        content: Text(
+          'Are you sure you want to remove:\n\n'
+          '🪙 $tokensToRemove tokens\n'
+          '⭐ $pointsToRemove points\n\n'
+          'This will also reset the knight\'s position.',
+          style: const TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[700],
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Yes, Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      _showMathChallenge(tokensToRemove, pointsToRemove);
+    }
+  }
+
+  Future<void> _showMathChallenge(int tokensToRemove, int pointsToRemove) async {
+    final random = Random();
+    
+    // Generate a math problem that's hard for kids
+    final num1 = 12 + random.nextInt(38); // 12-49
+    final num2 = 12 + random.nextInt(38); // 12-49
+    final correctAnswer = num1 + num2;
+    
+    final answerController = TextEditingController();
+
+    final mathResult = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Parent Verification'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Solve this math problem to continue:',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '$num1 + $num2 = ?',
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: answerController,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Your answer',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final userAnswer = int.tryParse(answerController.text);
+              Navigator.pop(context, userAnswer == correctAnswer);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green[700],
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+
+    if (mathResult == true) {
+      await _performRemoval(tokensToRemove, pointsToRemove);
+    } else if (mathResult == false) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Incorrect answer. No changes were made.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _performRemoval(int tokensToRemove, int pointsToRemove) async {
+    // Remove tokens
+    int newCurrentTokens = (currentTokens - tokensToRemove).clamp(0, currentTokens);
+    int newTotalTokens = (totalTokens - tokensToRemove).clamp(0, totalTokens);
+    await StorageService.saveTokens(newCurrentTokens);
+    await StorageService.saveTotalTokens(newTotalTokens);
+
+    // Remove points
+    int newPoints = (totalPoints - pointsToRemove).clamp(0, totalPoints);
+    await StorageService.savePoints(newPoints);
+
+    // Reset knight position
+    await StorageService.clearKnightPosition();
+
+    // Reload stats
+    await _loadStats();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Removed $tokensToRemove tokens and $pointsToRemove points.\nKnight position reset.',
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,7 +263,7 @@ class _ParentInfoState extends State<ParentInfo> {
                     children: [
                       _p(
                         "Motivating a very young child to practice the violin can be incredibly hard. "
-                        "This app makes it easier by turning practice into a fun game — without needing "
+                        "This app makes it easier by turning practice into a fun game – without needing "
                         "to give a reward every single time.",
                       ),
                       _p(
@@ -68,7 +273,7 @@ class _ParentInfoState extends State<ParentInfo> {
                         "a musical identity, and ultimately play better.",
                       ),
                       _p(
-                        "As children progress, they unlock small musical challenges — learning violin parts, basic "
+                        "As children progress, they unlock small musical challenges – learning violin parts, basic "
                         "theory, note-reading, and more, always wrapped in fun discovery.",
                       ),
                     ],
@@ -91,7 +296,7 @@ class _ParentInfoState extends State<ParentInfo> {
                       _bullet(
                         "Points are different: they accumulate forever through practice and ear training and unlock milestones.",
                       ),
-                      _bullet("Replay challenges as much as you like — replays are for learning and fun."),
+                      _bullet("Replay challenges as much as you like – replays are for learning and fun."),
                     ],
                   ),
 
@@ -113,20 +318,20 @@ class _ParentInfoState extends State<ParentInfo> {
 
                   const SizedBox(height: 20),
 
+                  _adjustmentSection(),
+
+                  const SizedBox(height: 20),
+
                   _sectionCard(
                     title: "💡 Tips for Parents",
                     children: [
                       _bullet("Encourage short but consistent daily practice."),
                       _bullet("Celebrate both tokens and long-term points."),
                       _bullet("Consider letting your child help choose the reward list."),
-                      _bullet("Replaying challenges reinforces learning — encourage it."),
+                      _bullet("Replaying challenges reinforces learning – encourage it."),
                       _bullet("Listening to their repertoire (even passively) builds musicality."),
                     ],
                   ),
-
-                  const SizedBox(height: 20),
-
-                  _resetSection(),
 
                   const SizedBox(height: 20),
 
@@ -183,7 +388,7 @@ class _ParentInfoState extends State<ParentInfo> {
           _reward("25 Tokens", Icons.local_movies, "Movie night with popcorn"),
           _reward("50 Tokens", Icons.toys, "\$5 toward a toy"),
           _reward("250 Tokens", Icons.smart_toy,
-              "A special toy or robot (50–100\$ range) — something the child truly wants"),
+              "A special toy or robot (50–100\$ range) – something the child truly wants"),
 
           const SizedBox(height: 12),
           _p(
@@ -244,75 +449,70 @@ class _ParentInfoState extends State<ParentInfo> {
     );
   }
 
-  Widget _resetSection() {
+  Widget _adjustmentSection() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.red[50],
+        color: Colors.orange[50],
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.red[300]!, width: 2),
+        border: Border.all(color: Colors.orange[300]!, width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "🔧 Developer Testing",
+            "⚙️ Adjust Tokens & Points",
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.red[900],
+              color: Colors.orange[900],
             ),
           ),
           const SizedBox(height: 12),
 
           const Text(
-              "These buttons reset parts of the app for testing purposes.",
-              style: TextStyle(fontSize: 14)),
+            "Made a mistake? You can remove tokens or points here.",
+            style: TextStyle(fontSize: 14),
+          ),
 
           const SizedBox(height: 16),
 
-          _resetButton("Reset Tokens", Icons.refresh, Colors.orange[700], () async {
-            if (await _confirm("Reset Tokens",
-                "This resets current and total tokens to 0.")) {
-              await StorageService.saveTokens(0);
-              await StorageService.saveTotalTokens(0);
-              _loadStats();
-            }
-          }),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _showRemoveTokensDialog,
+              icon: const Icon(Icons.remove_circle_outline),
+              label: const Text('Remove Tokens & Points'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange[700],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
 
-          _resetButton("Reset Points", Icons.star_border, Colors.orange[700], () async {
-            if (await _confirm("Reset Points", "This resets all points to 0.")) {
-              await StorageService.resetPoints();
-              _loadStats();
-            }
-          }),
-
-          const SizedBox(height: 8),
-
-          _resetButton(
-              "Reset Challenges", Icons.lock_reset, Colors.orange[700],
-              () async {
-            if (await _confirm("Reset Challenges",
-                "This locks all challenges again.")) {
-              await StorageService.resetChallenges();
-              _loadStats();
-            }
-          }),
-
-          const Divider(height: 30),
-
-          _resetButton("Reset ALL Progress", Icons.delete_forever,
-              Colors.red[700], () async {
-            if (await _confirm("Reset ALL",
-                "This resets tokens, points, and challenges. Cannot be undone.")) {
-              await StorageService.resetTokens();
-              await StorageService.resetPoints();
-              await StorageService.resetChallenges();
-              _loadStats();
-            }
-          }),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.yellow[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.yellow[700]!, width: 1),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.yellow[900], size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'This will also reset the knight\'s position on the map.',
+                    style: TextStyle(fontSize: 12, color: Colors.yellow[900]),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -399,47 +599,5 @@ class _ParentInfoState extends State<ParentInfo> {
         ],
       ),
     );
-  }
-
-  Widget _resetButton(
-      String label, IconData icon, Color? color, Future<void> Function() onTap) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon),
-        label: Text(label),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-      ),
-    );
-  }
-
-  Future<bool> _confirm(String title, String msg) async {
-    final result = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(title),
-            content: Text(msg),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text("Cancel")),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red[700],
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text("Reset"),
-              )
-            ],
-          ),
-        ) ??
-        false;
-    return result;
   }
 }
