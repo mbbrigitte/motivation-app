@@ -222,8 +222,39 @@ class _ParentInfoState extends State<ParentInfo> {
     // Remove points
     int newPoints = (totalPoints - pointsToRemove).clamp(0, totalPoints);
     await StorageService.savePoints(newPoints);
+    
+    // Calculate which milestone the new point total corresponds to
+    int newMilestone = (newPoints / 25).floor();
+    
+    // Reset last handled milestone
+    await StorageService.saveLastHandledMilestone(newMilestone);
 
-    // Reset knight position
+    // Reset all challenges, then re-unlock only those up to the new milestone
+    await StorageService.resetChallenges();
+    
+    // Unlock challenges based on milestones reached
+    // Milestone mapping (from knight_advancer logic):
+    final milestoneToChallenge = {
+      1: 'instrument_challenge',
+      2: 'posture_challenge',
+      3: 'bach_challenge',
+      4: 'animal_challenge',
+      5: 'listening_challenge',
+      6: 'question_challenge',
+      7: 'notes_challenge',
+      8: 'guard_challenge',
+      9: 'memory_challenge',
+      10: 'opengates_challenge',
+    };
+    
+    // Re-unlock challenges up to the new milestone
+    for (int i = 1; i <= newMilestone && i <= 10; i++) {
+      if (milestoneToChallenge.containsKey(i)) {
+        await StorageService.unlockChallenge(milestoneToChallenge[i]!);
+      }
+    }
+
+    // Reset knight position (this clears x, y, size, and lastAnimatedPoint)
     await StorageService.clearKnightPosition();
 
     // Reload stats
@@ -233,10 +264,11 @@ class _ParentInfoState extends State<ParentInfo> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Removed $tokensToRemove tokens and $pointsToRemove points.\nKnight position reset.',
+            'Removed $tokensToRemove tokens and $pointsToRemove points.\n'
+            'Knight at milestone $newMilestone. Challenges reset appropriately.',
           ),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
+          duration: const Duration(seconds: 4),
         ),
       );
     }

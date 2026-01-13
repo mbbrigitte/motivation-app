@@ -77,7 +77,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
       String audioFile = _currentLevel == 1 ? 'Knockrythm1.mp3' : 'Knockrythm2.mp3';
       await _audioPlayer.play(AssetSource('audio/$audioFile'));
       
-      await Future.delayed(const Duration(seconds: 6));
+      await Future.delayed(const Duration(seconds: 7));
       
       setState(() {
         _isListening = false;
@@ -90,6 +90,55 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
       });
     } catch (e) {
       print('Error playing audio: $e');
+      
+      // Show error dialog with skip option
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            backgroundColor: Colors.orange[700]!,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: const BorderSide(color: Colors.white, width: 3),
+            ),
+            content: const Text(
+              'Audio could not be played.\n\nWould you like to skip the audio and continue?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  setState(() {
+                    _isListening = false;
+                    if (!isSecondListen) {
+                      _hasPlayedFirstTime = true;
+                      _showQuizDialog();
+                    } else {
+                      _hasPlayedSecondTime = true;
+                    }
+                  });
+                },
+                child: const Text(
+                  'Continue',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      
       setState(() {
         _isListening = false;
       });

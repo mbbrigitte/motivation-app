@@ -68,12 +68,26 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     'castle_gates',
   ];
 
+  // Milestone to challenge mapping
+  final Map<int, String> milestoneToChallenge = {
+    25: 'instrument_challenge',
+    50: 'posture_challenge',
+    75: 'bach_challenge',
+    100: 'animal_challenge',
+    125: 'listening_challenge',
+    150: 'question_challenge',
+    175: 'notes_challenge',
+    200: 'guard_challenge',
+    225: 'memory_challenge',
+    250: 'opengates_challenge',
+  };
+
   @override
   void initState() {
     super.initState();
 
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 600), // 2 seconds per point was really smooth but somewhat slow
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
 
@@ -98,7 +112,6 @@ class _KnightAdvancerState extends State<KnightAdvancer>
       pathsData = json.decode(jsonString);
     } catch (e) {
       print('Error loading knight paths: $e');
-      // Fallback to empty data
       pathsData = {'backgrounds': {}};
     }
 
@@ -112,14 +125,17 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     bool justCrossedMilestone = points >= 25 && 
                                 currentMilestone > lastHandledMilestone;
 
+    // IMPORTANT: Unlock all challenges up to current milestone
+    await _unlockAllPreviousChallenges(currentMilestone);
+
     // Determine display points (position within current journey)
     int displayPoints;
     if (justCrossedMilestone) {
-      displayPoints = 25; // Stop at destination
+      displayPoints = 25;
     } else {
       displayPoints = points % 25;
       if (displayPoints == 0 && points > 0) {
-        displayPoints = 0; // Starting new journey
+        displayPoints = 0;
       }
     }
 
@@ -127,7 +143,6 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     int? savedLastPoint = await StorageService.loadLastAnimatedPoint();
     
     if (savedLastPoint != null && savedLastPoint <= displayPoints) {
-      // We have a saved position - start from there
       lastAnimatedPointInJourney = savedLastPoint;
       Map<String, double>? savedPos = _getPositionForPoints(savedLastPoint);
       if (savedPos != null) {
@@ -136,7 +151,6 @@ class _KnightAdvancerState extends State<KnightAdvancer>
         animatedSizePercent = savedPos['size']!;
       }
     } else {
-      // No saved position or it's invalid - start from beginning
       lastAnimatedPointInJourney = 0;
       Map<String, double>? startPos = _getPositionForPoints(0);
       if (startPos != null) {
@@ -187,20 +201,27 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     );
   }
 
+  /// Unlock all challenges from milestone 25 up to currentMilestone
+  Future<void> _unlockAllPreviousChallenges(int currentMilestone) async {
+    // For each milestone from 25 to currentMilestone (in steps of 25)
+    for (int milestone = 25; milestone <= currentMilestone; milestone += 25) {
+      if (milestoneToChallenge.containsKey(milestone)) {
+        String challengeId = milestoneToChallenge[milestone]!;
+        await StorageService.unlockChallenge(challengeId);
+      }
+    }
+  }
+
   // Animate point by point from lastAnimatedPointInJourney to targetPoint
   Future<void> _animatePointByPoint(int targetPoint) async {
-    
-    // Animate from lastAnimatedPointInJourney to targetPoint, one point at a time
     for (int i = lastAnimatedPointInJourney + 1; i <= targetPoint; i++) {
       if (!mounted) return;
       
       await _animateToPosition(i);
       
-      // Save this point so we remember it next time
       await StorageService.saveLastAnimatedPoint(i);
       lastAnimatedPointInJourney = i;
       
-      // Small pause between points
       if (i < targetPoint) {
         await Future.delayed(const Duration(milliseconds: 50));
       }
@@ -208,10 +229,9 @@ class _KnightAdvancerState extends State<KnightAdvancer>
   }
 
   void _navigateToChallenge(int milestone) {
-    int journeyIndex = (milestone ~/ 25) - 1; // 0-indexed
+    int journeyIndex = (milestone ~/ 25) - 1;
     
     if (journeyIndex < 0 || journeyIndex >= backgroundOrder.length) {
-      // Fallback to practice finished
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const PracticeFinished()),
@@ -276,7 +296,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
         pathsData['backgrounds'][bgKey]['image'] != null) {
       return pathsData['backgrounds'][bgKey]['image'];
     }
-    return 'assets/images/Background1_instrument_cart.webp'; // Fallback
+    return 'assets/images/Background1_instrument_cart.webp';
   }
 
   String _getJourneyTitle() {
@@ -286,7 +306,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
         pathsData['backgrounds'][bgKey]['title'] != null) {
       return pathsData['backgrounds'][bgKey]['title'];
     }
-    return 'Epic Journey'; // Fallback
+    return 'Epic Journey';
   }
 
   List<dynamic> _getCurrentWaypoints() {
@@ -296,18 +316,16 @@ class _KnightAdvancerState extends State<KnightAdvancer>
         pathsData['backgrounds'][bgKey]['waypoints'] != null) {
       return pathsData['backgrounds'][bgKey]['waypoints'];
     }
-    return []; // Fallback empty list
+    return [];
   }
 
   Map<String, double>? _getPositionForPoints(int pts) {
     List<dynamic> waypoints = _getCurrentWaypoints();
     
     if (waypoints.isEmpty) {
-      // Fallback positions if no waypoints defined
       return {'x': 0.5, 'y': 0.9, 'size': 0.12};
     }
 
-    // Clamp points to 0-25 range
     int index = pts.clamp(0, 25);
     if (index > waypoints.length - 1) {
       index = waypoints.length - 1;
@@ -317,8 +335,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     return {
       'x': (waypoint['x'] as num).toDouble(),
       'y': (waypoint['y'] as num).toDouble(),
-      // Make knight 50% bigger by multiplying size by 2
-      'size': ((waypoint['size'] as num).toDouble()) * 3,
+      'size': ((waypoint['size'] as num).toDouble()) * 3.75,
     };
   }
 
@@ -346,7 +363,6 @@ class _KnightAdvancerState extends State<KnightAdvancer>
 
     _animationController.reset();
 
-    // Create a completer to wait for animation to finish
     final completer = Completer<void>();
 
     void listener() {
@@ -371,10 +387,8 @@ class _KnightAdvancerState extends State<KnightAdvancer>
 
     _animationController.forward();
 
-    // Wait for animation to complete
     await completer.future;
 
-    // Clean up listeners
     _animationController.removeListener(listener);
     _animationController.removeStatusListener(statusListener);
   }
@@ -387,17 +401,14 @@ class _KnightAdvancerState extends State<KnightAdvancer>
       );
     }
 
-    // Get screen dimensions
     final size = MediaQuery.of(context).size;
     final screenWidth = size.width;
     final screenHeight = size.height;
 
-    // Convert percentages to actual pixels based on current screen size
     final knightX = animatedXPercent * screenWidth;
     final knightY = animatedYPercent * screenHeight;
     final knightSize = animatedSizePercent * screenWidth;
 
-    // Calculate display points for speech bubble
     int displayPoints = points - lastHandledMilestone;
     if (displayPoints < 0) displayPoints = 0;
     if (displayPoints > 25) displayPoints = 25;
@@ -406,7 +417,6 @@ class _KnightAdvancerState extends State<KnightAdvancer>
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Background image
           Positioned.fill(
             child: Image.asset(
               _getBackgroundImage(),
@@ -425,7 +435,6 @@ class _KnightAdvancerState extends State<KnightAdvancer>
             ),
           ),
 
-          // Knight sprite
           Positioned(
             left: knightX - (knightSize / 2),
             top: knightY - knightSize,
@@ -443,7 +452,6 @@ class _KnightAdvancerState extends State<KnightAdvancer>
             ),
           ),
 
-          // Speech bubble - show when animation is complete and flag is set
           if (showSpeechBubble && _getSpeechBubbleForPoints(displayPoints) != null)
             Positioned(
               left: knightX + (screenWidth * 0.02),
@@ -470,7 +478,6 @@ class _KnightAdvancerState extends State<KnightAdvancer>
               ),
             ),
 
-          // Title overlay
           Positioned(
             top: screenHeight * 0.05,
             left: 0,
