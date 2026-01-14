@@ -26,6 +26,9 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
   bool _showResult = false;
   bool _success = false;
   
+  // Debug info visible on screen
+  String _debugInfo = '';
+  
   // Tap recording
   List<int> _userTapTimestamps = [];
   List<int> _userTapIntervals = [];
@@ -41,9 +44,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   bool _showTapFeedback = false;
-  
-  // Stream subscription to prevent multiple listeners
-  StreamSubscription? _audioCompleteSubscription;
 
   @override
   void initState() {
@@ -75,25 +75,57 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
 
     setState(() {
       _isPlaying = true;
+      _debugInfo = 'Starting playback...';
     });
 
     try {
       final String audioFile = _currentLevel == 1 ? 'Knockrythm1' : 'Knockrythm2';
       
-      // Cancel any existing subscription first
-      await _audioCompleteSubscription?.cancel();
+      debugPrint('=== ATTEMPTING TO PLAY: audio/$audioFile.mp3 ===');
+      setState(() {
+        _debugInfo = 'Loading: $audioFile.mp3';
+      });
       
       await _audioPlayer.stop();
       await _audioPlayer.play(AssetSource('audio/$audioFile.mp3'));
       
-      // Create a new subscription and store it
-      _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((_) {
-        if (mounted) {
+      debugPrint('=== PLAY COMMAND SENT ===');
+      setState(() {
+        _debugInfo = 'Play command sent, waiting for completion...';
+      });
+      
+      // Set up completion listener
+      _audioPlayer.onPlayerComplete.listen((_) {
+        debugPrint('=== AUDIO COMPLETED ===');
+        if (mounted && _isPlaying) {
           setState(() {
             _isPlaying = false;
+            _debugInfo = 'Audio completed naturally';
           });
           
           // Move to next step after audio completes
+          if (_currentStep == 'listen1') {
+            debugPrint('=== SHOWING QUIZ ===');
+            _showQuizDialog();
+          } else if (_currentStep == 'listen2') {
+            debugPrint('=== MOVING TO KNOCK ===');
+            setState(() {
+              _currentStep = 'knock';
+            });
+          }
+        }
+      });
+      
+      // ANDROID FALLBACK: If audio doesn't fire completion after 10 seconds, assume it's done
+      Future.delayed(const Duration(seconds: 10), () {
+        debugPrint('=== FALLBACK TIMER TRIGGERED ===');
+        if (mounted && _isPlaying) {
+          debugPrint('=== FALLBACK: Still playing, forcing completion ===');
+          setState(() {
+            _isPlaying = false;
+            _debugInfo = 'Fallback timer triggered (10s)';
+          });
+          
           if (_currentStep == 'listen1') {
             _showQuizDialog();
           } else if (_currentStep == 'listen2') {
@@ -105,9 +137,10 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
       });
 
     } catch (e) {
-      debugPrint('Error playing audio: $e');
+      debugPrint('=== ERROR PLAYING AUDIO: $e ===');
       setState(() {
         _isPlaying = false;
+        _debugInfo = 'ERROR: $e';
       });
       
       // Still move forward even if audio fails
@@ -433,7 +466,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
 
   @override
   void dispose() {
-    _audioCompleteSubscription?.cancel();
     _audioPlayer.dispose();
     _pulseController.dispose();
     super.dispose();
