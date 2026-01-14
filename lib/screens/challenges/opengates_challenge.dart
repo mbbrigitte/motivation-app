@@ -28,16 +28,16 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
   int _currentLevel = 1;
 
   // Playback control flags
-  bool _isSecondListenPlaying = false; // true when current play is second listen
-  bool _quizShownForLevel = false; // ensure quiz only shown once per level
+  bool _isSecondListenPlaying = false;
+  bool _quizShownForLevel = false;
 
   // Tap recording
   List<int> _userTapTimestamps = [];
   List<int> _userTapIntervals = [];
 
   final Map<int, List<int>> _expectedIntervals = {
-    1: [350, 700, 350, 350, 700, 350, 350, 700, 350, 350], // 10 intervals = 11 knocks
-    2: [850, 300, 650, 600, 600, 350, 300], // 7 intervals = 8 knocks
+    1: [350, 700, 350, 350, 700, 350, 350, 700, 350, 350],
+    2: [850, 300, 650, 600, 600, 350, 300],
   };
 
   final int _tolerance = 200;
@@ -51,29 +51,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
   void initState() {
     super.initState();
     _loadTokens();
-
-
-    // Attach onPlayerComplete listener ONCE to avoid multiple firings
-    _audioPlayer.onPlayerComplete.listen((_) {
-      if (!mounted) return;
-
-      setState(() {
-        _isListening = false;
-
-        // Only show the quiz on the first listen of the current level,
-        // and only if the quiz hasn't already been shown and hasn't been answered.
-        if (!_isSecondListenPlaying) {
-          _hasPlayedFirstTime = true;
-          if (!_quizShownForLevel && !_hasAnsweredQuiz) {
-            _quizShownForLevel = true;
-            // schedule showing the quiz after state settles
-            Future.microtask(() => _showQuizDialog());
-          }
-        } else {
-          _hasPlayedSecondTime = true;
-        }
-      });
-    });
 
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -96,60 +73,66 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
   }
 
   Future<void> _playRhythmAudio({bool isSecondListen = false}) async {
-    // prevent overlapping requests
     if (_isListening) return;
 
     setState(() {
       _isListening = true;
       _isSecondListenPlaying = isSecondListen;
-      // Only reset quizShown for a fresh "first listen" of the level
       if (!isSecondListen) {
         _quizShownForLevel = false;
-        // Also reset answered flag so quiz can be answered for this level
         _hasAnsweredQuiz = false;
       }
     });
 
     try {
       final String audioFile = _currentLevel == 1 ? 'Knockrythm1' : 'Knockrythm2';
+      
+      debugPrint('Playing: audio/$audioFile.mp3');
 
-      // Stop any currently playing audio
       await _audioPlayer.stop();
-
-      // Start playback
       await _audioPlayer.play(AssetSource('audio/$audioFile.mp3'));
+      
+      // Set up the completion listener RIGHT AFTER starting playback
+      // This is the same pattern used in question_challenge.dart
+      _audioPlayer.onPlayerComplete.listen((_) {
+        if (mounted) {
+          debugPrint('Audio completed naturally');
+          setState(() {
+            _isListening = false;
+
+            if (!_isSecondListenPlaying) {
+              _hasPlayedFirstTime = true;
+              if (!_quizShownForLevel && !_hasAnsweredQuiz) {
+                _quizShownForLevel = true;
+                Future.microtask(() => _showQuizDialog());
+              }
+            } else {
+              _hasPlayedSecondTime = true;
+            }
+          });
+        }
+      });
 
     } catch (e) {
       debugPrint('Error playing audio: $e');
-      _handleAudioFailure(isSecondListen);
-    }
-  }
-
-  void _handleAudioFailure(bool isSecondListen) {
-    if (!mounted) return;
-
-    // Prevent the quiz from being shown multiple times via multiple failure paths
-    final shouldShowQuiz = !isSecondListen && !_quizShownForLevel && !_hasAnsweredQuiz;
-
-    setState(() {
-      _isListening = false;
-      if (!isSecondListen) {
-        _hasPlayedFirstTime = true;
-        if (shouldShowQuiz) {
-          _quizShownForLevel = true;
-        }
-      } else {
-        _hasPlayedSecondTime = true;
+      if (mounted) {
+        setState(() {
+          _isListening = false;
+          if (!isSecondListen) {
+            _hasPlayedFirstTime = true;
+            if (!_quizShownForLevel && !_hasAnsweredQuiz) {
+              _quizShownForLevel = true;
+              Future.microtask(() => _showQuizDialog());
+            }
+          } else {
+            _hasPlayedSecondTime = true;
+          }
+        });
       }
-    });
-
-    if (shouldShowQuiz) {
-      Future.microtask(() => _showQuizDialog());
     }
   }
 
   void _showQuizDialog() {
-    // Safety: show only if not answered (and flag ensures it can't be called twice for the level)
     if (_hasAnsweredQuiz) return;
 
     final quizData = _currentLevel == 1
@@ -230,7 +213,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
     });
 
     if (!isCorrect) {
-      // Show correct answer and prompt to listen again
       if (mounted) {
         showDialog(
           context: context,
@@ -259,7 +241,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
         }
       }
     } else {
-      // Correct answer
       if (mounted) {
         showDialog(
           context: context,
@@ -371,7 +352,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
 
   Future<void> _onRhythmSuccess() async {
     if (_currentLevel == 1) {
-      // First level complete, move to level 2
       if (mounted) {
         showDialog(
           context: context,
@@ -400,7 +380,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
           Navigator.of(context).pop();
           setState(() {
             _currentLevel = 2;
-            // Reset relevant flags for level 2
             _hasPlayedFirstTime = false;
             _hasAnsweredQuiz = false;
             _hasPlayedSecondTime = false;
@@ -411,7 +390,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
         }
       }
     } else {
-      // Both levels complete!
       if (!widget.isReplay) {
         await _addToken();
       }
@@ -493,7 +471,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
             children: [
               SizedBox(height: screenHeight * 0.02),
 
-              // Instruction text
               Container(
                 padding: EdgeInsets.all(screenWidth * 0.04),
                 decoration: BoxDecoration(
@@ -514,7 +491,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
 
               SizedBox(height: screenHeight * 0.01),
 
-              // Door with overlaid knock button
               SizedBox(
                 width: screenWidth * 0.7,
                 height: screenWidth * 0.7 * 1.5,
@@ -598,7 +574,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
 
               SizedBox(height: screenHeight * 0.02),
 
-              // Step 1: First Listen Button
               if (!_hasPlayedFirstTime && !_isListening)
                 ElevatedButton.icon(
                   onPressed: () => _playRhythmAudio(isSecondListen: false),
@@ -627,7 +602,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                   ),
                 ),
 
-              // Listening indicator
               if (_isListening)
                 Padding(
                   padding: EdgeInsets.only(top: screenHeight * 0.02),
@@ -648,7 +622,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                   ),
                 ),
 
-              // Step 3: Second Listen Button (after quiz)
               if (_hasAnsweredQuiz && !_hasPlayedSecondTime && !_isListening)
                 ElevatedButton.icon(
                   onPressed: () => _playRhythmAudio(isSecondListen: true),
@@ -677,13 +650,11 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                   ),
                 ),
 
-              // Step 4: Ready to Knock button AND Listen Once More
               if (_hasPlayedSecondTime && !_isRecording && !_showResult)
                 Padding(
                   padding: EdgeInsets.only(top: screenHeight * 0.02),
                   child: Column(
                     children: [
-                      // Ready to Knock button
                       ElevatedButton(
                         onPressed: _startRecording,
                         style: ElevatedButton.styleFrom(
@@ -706,7 +677,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                         ),
                       ),
                       SizedBox(height: screenHeight * 0.015),
-                      // Listen Once More button
                       ElevatedButton.icon(
                         onPressed: () {
                           setState(() {
@@ -742,7 +712,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                   ),
                 ),
 
-              // Knock counter
               if (_isRecording)
                 Padding(
                   padding: EdgeInsets.only(top: screenHeight * 0.02),
@@ -756,7 +725,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                   ),
                 ),
 
-              // Error message and retry
               if (_showResult && !_success)
                 Padding(
                   padding: EdgeInsets.only(top: screenHeight * 0.02),
@@ -808,7 +776,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                               setState(() {
                                 _showResult = false;
                                 _hasPlayedSecondTime = false;
-                                // keep _quizShownForLevel as-is: if quiz was shown, we don't want to show it again
                               });
                             },
                             style: ElevatedButton.styleFrom(
