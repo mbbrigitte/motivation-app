@@ -52,18 +52,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
     super.initState();
     _loadTokens();
 
-    // Set audio mode for better Android compatibility
-    _audioPlayer.setAudioContext(
-      AudioContext(
-        android: AudioContextAndroid(
-          isSpeakerphoneOn: true,
-          stayAwake: false,
-          contentType: AndroidContentType.music,
-          usageType: AndroidUsageType.media,
-          audioFocus: AndroidAudioFocus.gain,
-        ),
-      ),
-    );
 
     // Attach onPlayerComplete listener ONCE to avoid multiple firings
     _audioPlayer.onPlayerComplete.listen((_) {
@@ -125,26 +113,12 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
     try {
       final String audioFile = _currentLevel == 1 ? 'Knockrythm1' : 'Knockrythm2';
 
-      // Stop any currently playing audio and reset mode
+      // Stop any currently playing audio
       await _audioPlayer.stop();
-      await _audioPlayer.setReleaseMode(ReleaseMode.stop);
 
       // Start playback
       await _audioPlayer.play(AssetSource('audio/$audioFile.mp3'));
 
-      // Wait until playback actually starts (or timeout)
-      final started = await Future.any([
-        _audioPlayer.onPlayerStateChanged.firstWhere((s) => s == PlayerState.playing),
-        Future.delayed(const Duration(seconds: 5), () => null),
-      ]);
-
-      if (started == null) {
-        // playback didn't start in time -> handle as failure
-        _handleAudioFailure(isSecondListen);
-        return;
-      }
-
-      // If started, let onPlayerComplete handle the rest.
     } catch (e) {
       debugPrint('Error playing audio: $e');
       _handleAudioFailure(isSecondListen);

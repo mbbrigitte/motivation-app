@@ -264,7 +264,7 @@ SizedBox(
             child: ClipRect(
               child: Align(
                 alignment: Alignment.center,
-                widthFactor: 0.70, // keeps 70% → cuts ~15% left & right
+                widthFactor: 0.75, // keeps 70% → cuts ~15% left & right
                 child: AspectRatio(
                   aspectRatio: _videoController!.value.aspectRatio,
                   child: VideoPlayer(_videoController!),
