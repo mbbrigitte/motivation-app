@@ -16,21 +16,16 @@ class OpenGatesChallenge extends StatefulWidget {
 class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTickerProviderStateMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
   int _currentTokens = 0;
-
-  // Challenge state
-  bool _isListening = false;
-  bool _hasPlayedFirstTime = false;
-  bool _hasAnsweredQuiz = false;
-  bool _hasPlayedSecondTime = false;
+  int _currentLevel = 1;
+  
+  // Simple step tracking: 'listen1' -> 'quiz' -> 'listen2' -> 'knock'
+  String _currentStep = 'listen1';
+  
+  bool _isPlaying = false;
   bool _isRecording = false;
   bool _showResult = false;
   bool _success = false;
-  int _currentLevel = 1;
-
-  // Playback control flags
-  bool _isSecondListenPlaying = false;
-  bool _quizShownForLevel = false;
-
+  
   // Tap recording
   List<int> _userTapTimestamps = [];
   List<int> _userTapIntervals = [];
@@ -46,6 +41,9 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
   bool _showTapFeedback = false;
+  
+  // Stream subscription to prevent multiple listeners
+  StreamSubscription? _audioCompleteSubscription;
 
   @override
   void initState() {
@@ -72,69 +70,58 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
     });
   }
 
-  Future<void> _playRhythmAudio({bool isSecondListen = false}) async {
-    if (_isListening) return;
+  Future<void> _playAudio() async {
+    if (_isPlaying) return;
 
     setState(() {
-      _isListening = true;
-      _isSecondListenPlaying = isSecondListen;
-      if (!isSecondListen) {
-        _quizShownForLevel = false;
-        _hasAnsweredQuiz = false;
-      }
+      _isPlaying = true;
     });
 
     try {
       final String audioFile = _currentLevel == 1 ? 'Knockrythm1' : 'Knockrythm2';
       
-      debugPrint('Playing: audio/$audioFile.mp3');
-
+      // Cancel any existing subscription first
+      await _audioCompleteSubscription?.cancel();
+      
       await _audioPlayer.stop();
       await _audioPlayer.play(AssetSource('audio/$audioFile.mp3'));
       
-      // Set up the completion listener RIGHT AFTER starting playback
-      // This is the same pattern used in question_challenge.dart
-      _audioPlayer.onPlayerComplete.listen((_) {
+      // Create a new subscription and store it
+      _audioCompleteSubscription = _audioPlayer.onPlayerComplete.listen((_) {
         if (mounted) {
-          debugPrint('Audio completed naturally');
           setState(() {
-            _isListening = false;
-
-            if (!_isSecondListenPlaying) {
-              _hasPlayedFirstTime = true;
-              if (!_quizShownForLevel && !_hasAnsweredQuiz) {
-                _quizShownForLevel = true;
-                Future.microtask(() => _showQuizDialog());
-              }
-            } else {
-              _hasPlayedSecondTime = true;
-            }
+            _isPlaying = false;
           });
+          
+          // Move to next step after audio completes
+          if (_currentStep == 'listen1') {
+            _showQuizDialog();
+          } else if (_currentStep == 'listen2') {
+            setState(() {
+              _currentStep = 'knock';
+            });
+          }
         }
       });
 
     } catch (e) {
       debugPrint('Error playing audio: $e');
-      if (mounted) {
+      setState(() {
+        _isPlaying = false;
+      });
+      
+      // Still move forward even if audio fails
+      if (_currentStep == 'listen1') {
+        _showQuizDialog();
+      } else if (_currentStep == 'listen2') {
         setState(() {
-          _isListening = false;
-          if (!isSecondListen) {
-            _hasPlayedFirstTime = true;
-            if (!_quizShownForLevel && !_hasAnsweredQuiz) {
-              _quizShownForLevel = true;
-              Future.microtask(() => _showQuizDialog());
-            }
-          } else {
-            _hasPlayedSecondTime = true;
-          }
+          _currentStep = 'knock';
         });
       }
     }
   }
 
   void _showQuizDialog() {
-    if (_hasAnsweredQuiz) return;
-
     final quizData = _currentLevel == 1
         ? {
             'question': 'What did this knocking rhythm remind you of?',
@@ -208,11 +195,8 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
   Future<void> _handleQuizAnswer(bool isCorrect) async {
     final correctAnswer = _currentLevel == 1 ? 'C: O Come, Little Children' : 'B: May Song';
 
-    setState(() {
-      _hasAnsweredQuiz = true;
-    });
-
     if (!isCorrect) {
+      // Show wrong answer
       if (mounted) {
         showDialog(
           context: context,
@@ -241,6 +225,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
         }
       }
     } else {
+      // Show correct answer
       if (mounted) {
         showDialog(
           context: context,
@@ -266,6 +251,9 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
         await Future.delayed(const Duration(seconds: 3));
         if (mounted) {
           Navigator.of(context).pop();
+          setState(() {
+            _currentStep = 'listen2';
+          });
         }
       }
     }
@@ -352,6 +340,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
 
   Future<void> _onRhythmSuccess() async {
     if (_currentLevel == 1) {
+      // Move to level 2
       if (mounted) {
         showDialog(
           context: context,
@@ -380,16 +369,13 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
           Navigator.of(context).pop();
           setState(() {
             _currentLevel = 2;
-            _hasPlayedFirstTime = false;
-            _hasAnsweredQuiz = false;
-            _hasPlayedSecondTime = false;
+            _currentStep = 'listen1';
             _showResult = false;
-            _quizShownForLevel = false;
-            _isSecondListenPlaying = false;
           });
         }
       }
     } else {
+      // Challenge complete!
       if (!widget.isReplay) {
         await _addToken();
       }
@@ -447,6 +433,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
 
   @override
   void dispose() {
+    _audioCompleteSubscription?.cancel();
     _audioPlayer.dispose();
     _pulseController.dispose();
     super.dispose();
@@ -471,6 +458,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
             children: [
               SizedBox(height: screenHeight * 0.02),
 
+              // Instructions
               Container(
                 padding: EdgeInsets.all(screenWidth * 0.04),
                 decoration: BoxDecoration(
@@ -491,6 +479,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
 
               SizedBox(height: screenHeight * 0.01),
 
+              // Door image with knock button overlay
               SizedBox(
                 width: screenWidth * 0.7,
                 height: screenWidth * 0.7 * 1.5,
@@ -521,6 +510,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                       ),
                     ),
 
+                    // Knock button (only when recording)
                     if (_isRecording)
                       GestureDetector(
                         onTap: _onTap,
@@ -531,9 +521,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                             height: screenWidth * 0.48,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _showTapFeedback
-                                  ? Colors.red[700]
-                                  : Colors.red[900],
+                              color: _showTapFeedback ? Colors.red[700] : Colors.red[900],
                               border: Border.all(color: Colors.white, width: 4),
                               boxShadow: [
                                 BoxShadow(
@@ -574,9 +562,10 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
 
               SizedBox(height: screenHeight * 0.02),
 
-              if (!_hasPlayedFirstTime && !_isListening)
+              // Controls based on current step
+              if (_currentStep == 'listen1' && !_isPlaying)
                 ElevatedButton.icon(
-                  onPressed: () => _playRhythmAudio(isSecondListen: false),
+                  onPressed: _playAudio,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue[700],
                     padding: EdgeInsets.symmetric(
@@ -587,11 +576,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  icon: Icon(
-                    Icons.volume_up,
-                    size: screenWidth * 0.08,
-                    color: Colors.white,
-                  ),
+                  icon: Icon(Icons.volume_up, size: screenWidth * 0.08, color: Colors.white),
                   label: Text(
                     'Listen to the Rhythm',
                     style: TextStyle(
@@ -602,29 +587,26 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                   ),
                 ),
 
-              if (_isListening)
-                Padding(
-                  padding: EdgeInsets.only(top: screenHeight * 0.02),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.hearing, color: Colors.blue[700], size: screenWidth * 0.08),
-                      SizedBox(width: screenWidth * 0.02),
-                      Text(
-                        'Listening...',
-                        style: TextStyle(
-                          fontSize: screenWidth * 0.045,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue[900],
-                        ),
+              if (_isPlaying)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.hearing, color: Colors.blue[700], size: screenWidth * 0.08),
+                    SizedBox(width: screenWidth * 0.02),
+                    Text(
+                      'Listening...',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.045,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[900],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
 
-              if (_hasAnsweredQuiz && !_hasPlayedSecondTime && !_isListening)
+              if (_currentStep == 'listen2' && !_isPlaying)
                 ElevatedButton.icon(
-                  onPressed: () => _playRhythmAudio(isSecondListen: true),
+                  onPressed: _playAudio,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.purple[700],
                     padding: EdgeInsets.symmetric(
@@ -635,11 +617,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  icon: Icon(
-                    Icons.volume_up,
-                    size: screenWidth * 0.08,
-                    color: Colors.white,
-                  ),
+                  icon: Icon(Icons.volume_up, size: screenWidth * 0.08, color: Colors.white),
                   label: Text(
                     'Listen Again',
                     style: TextStyle(
@@ -650,81 +628,72 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                   ),
                 ),
 
-              if (_hasPlayedSecondTime && !_isRecording && !_showResult)
-                Padding(
-                  padding: EdgeInsets.only(top: screenHeight * 0.02),
-                  child: Column(
-                    children: [
-                      ElevatedButton(
-                        onPressed: _startRecording,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[700],
-                          padding: EdgeInsets.symmetric(
-                            horizontal: screenWidth * 0.08,
-                            vertical: screenHeight * 0.02,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+              if (_currentStep == 'knock' && !_isRecording && !_showResult)
+                Column(
+                  children: [
+                    ElevatedButton(
+                      onPressed: _startRecording,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[700],
+                        padding: EdgeInsets.symmetric(
+                          horizontal: screenWidth * 0.08,
+                          vertical: screenHeight * 0.02,
                         ),
-                        child: Text(
-                          'Ready to Knock!',
-                          style: TextStyle(
-                            fontSize: screenWidth * 0.045,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      SizedBox(height: screenHeight * 0.015),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _hasPlayedSecondTime = false;
-                          });
-                          _playRhythmAudio(isSecondListen: true);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange[700],
-                          padding: EdgeInsets.symmetric(
-                            horizontal: screenWidth * 0.08,
-                            vertical: screenHeight * 0.015,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        icon: Icon(
-                          Icons.replay,
-                          size: screenWidth * 0.06,
+                      child: Text(
+                        'Ready to Knock!',
+                        style: TextStyle(
+                          fontSize: screenWidth * 0.045,
+                          fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
-                        label: Text(
-                          'Listen Once More',
-                          style: TextStyle(
-                            fontSize: screenWidth * 0.04,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                      ),
+                    ),
+                    SizedBox(height: screenHeight * 0.015),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _currentStep = 'listen2';
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange[700],
+                        padding: EdgeInsets.symmetric(
+                          horizontal: screenWidth * 0.08,
+                          vertical: screenHeight * 0.015,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-
-              if (_isRecording)
-                Padding(
-                  padding: EdgeInsets.only(top: screenHeight * 0.02),
-                  child: Text(
-                    'Knocks: ${_userTapTimestamps.length}/${(_expectedIntervals[_currentLevel]?.length ?? 0) + 1}',
-                    style: TextStyle(
-                      fontSize: screenWidth * 0.045,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red[900],
+                      icon: Icon(Icons.replay, size: screenWidth * 0.06, color: Colors.white),
+                      label: Text(
+                        'Listen Once More',
+                        style: TextStyle(
+                          fontSize: screenWidth * 0.04,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
+                  ],
+                ),
+
+              // Knock counter
+              if (_isRecording)
+                Text(
+                  'Knocks: ${_userTapTimestamps.length}/${(_expectedIntervals[_currentLevel]?.length ?? 0) + 1}',
+                  style: TextStyle(
+                    fontSize: screenWidth * 0.045,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red[900],
                   ),
                 ),
 
+              // Failed attempt - retry option
               if (_showResult && !_success)
                 Padding(
                   padding: EdgeInsets.only(top: screenHeight * 0.02),
@@ -775,7 +744,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                             onPressed: () {
                               setState(() {
                                 _showResult = false;
-                                _hasPlayedSecondTime = false;
+                                _currentStep = 'listen2';
                               });
                             },
                             style: ElevatedButton.styleFrom(
@@ -805,22 +774,21 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
   }
 
   String _getInstructionText() {
-    if (!_hasPlayedFirstTime) {
-      if (_currentLevel == 1) {
-        return 'You reached the castle, but the doors are closed.\n\nListen to the rhythm to unlock the door!';
-      } else {
-        return 'Almost there! Listen to the secret knock pattern!';
-      }
-    } else if (!_hasAnsweredQuiz) {
-      return 'Which song does this remind you of?';
-    } else if (!_hasPlayedSecondTime) {
-      return 'Great! Now listen again carefully...';
-    } else if (!_isRecording && !_showResult) {
-      return 'Now knock the rhythm on the door!';
-    } else if (_isRecording) {
-      return 'Knock the rhythm!';
-    } else {
-      return 'Try the rhythm!';
+    switch (_currentStep) {
+      case 'listen1':
+        return _currentLevel == 1
+            ? 'You reached the castle, but the doors are closed.\n\nListen to the rhythm to unlock the door!'
+            : 'Almost there! Listen to the secret knock pattern!';
+      case 'quiz':
+        return 'Which song does this remind you of?';
+      case 'listen2':
+        return 'Great! Now listen again carefully...';
+      case 'knock':
+        return _isRecording 
+            ? 'Knock the rhythm!'
+            : 'Now knock the rhythm on the door!';
+      default:
+        return 'Try the rhythm!';
     }
   }
 }
