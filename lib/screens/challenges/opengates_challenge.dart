@@ -92,25 +92,10 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
       
       // Stop any currently playing audio
       await _audioPlayer.stop();
-      await _audioPlayer.release();
       
-      // Try .mp3 first, then .m4a
-      bool played = false;
-      for (String extension in ['.mp3', '.m4a']) {
-        try {
-          await _audioPlayer.play(AssetSource('audio/$audioFile$extension'));
-          played = true;
-          print('Successfully playing: audio/$audioFile$extension');
-          break;
-        } catch (e) {
-          print('Failed to play audio/$audioFile$extension: $e');
-          continue;
-        }
-      }
-      
-      if (!played) {
-        throw Exception('Could not play audio file in any format');
-      }
+await _audioPlayer.play(
+  AssetSource('audio/$audioFile.mp3'),
+);
       
       // Listen for completion
       _audioPlayer.onPlayerComplete.listen((_) {

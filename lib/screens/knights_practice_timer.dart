@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import '../widgets/bow_animation.dart';
+import 'package:video_player/video_player.dart';
 import '../widgets/sword_icon.dart';
 import 'treasure_chest_page.dart';
 
@@ -15,10 +15,33 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
   int _seconds = 0;
   bool _isRunning = false;
   Timer? _timer;
+  VideoPlayerController? _videoController;
+  bool _videoInitialized = false;
 
   bool _token1Full = false;
   bool _token2Full = false;
   bool _token3Full = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeVideo();
+  }
+
+  Future<void> _initializeVideo() async {
+    // Initialize video controller
+    _videoController = VideoPlayerController.asset('assets/videos/bow_violin.mp4');
+    
+    try {
+      await _videoController!.initialize();
+      await _videoController!.setLooping(true);
+      setState(() {
+        _videoInitialized = true;
+      });
+    } catch (e) {
+      print('Error initializing video: $e');
+    }
+  }
 
   void _startPause() {
     setState(() {
@@ -26,6 +49,7 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
     });
 
     if (_isRunning) {
+      // Start the timer
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         setState(() {
           _seconds++;
@@ -35,8 +59,15 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
           if (_seconds == 15 * 60) _token3Full = true;
         });
       });
+      
+      // Start the video
+      _videoController?.play();
     } else {
+      // Pause the timer
       _timer?.cancel();
+      
+      // Pause the video
+      _videoController?.pause();
     }
   }
 
@@ -49,6 +80,10 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
       _token3Full = false;
     });
     _timer?.cancel();
+    
+    // Reset video to start
+    _videoController?.seekTo(Duration.zero);
+    _videoController?.pause();
   }
 
   void _showFinishedDialog() {
@@ -58,6 +93,7 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
         _isRunning = false;
       });
       _timer?.cancel();
+      _videoController?.pause();
     }
     
     showDialog(
@@ -160,6 +196,7 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
   @override
   void dispose() {
     _timer?.cancel();
+    _videoController?.dispose();
     super.dispose();
   }
 
@@ -216,39 +253,34 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                 ),
               ),
 
-              // 🎻 Violin + Bow Stack - Made smaller and more responsive
-              SizedBox(
-                height: h * 0.18,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.center,
-                  children: [
-                    // Violin
-                    Transform.rotate(
-                      angle: -0.51,
-                      child: Image.asset(
-                        'assets/images/violin.png',
-                        width: w * 0.45,
-                        height: h * 0.4,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-
-                    // Bow (on top) - FLIPPED
-                    if (_isRunning)
-                      Positioned(
-                        top: h * 0.01,
-                        child: Transform.rotate(
-                          angle: -15,
-                          child: Transform.flip(
-                            flipY: true,
-                            child: BowAnimation(),
-                          ),
-                        ),
-                      ),
-                  ],
+// 🎻 Violin + Bow Video (cropped + rotated)
+SizedBox(
+  height: h * 0.18,
+  child: _videoInitialized
+      ? ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Transform.rotate(
+            angle: 45 * 3.1415926535 / 180, // +45 degrees
+            child: ClipRect(
+              child: Align(
+                alignment: Alignment.center,
+                widthFactor: 0.70, // keeps 70% → cuts ~15% left & right
+                child: AspectRatio(
+                  aspectRatio: _videoController!.value.aspectRatio,
+                  child: VideoPlayer(_videoController!),
                 ),
               ),
+            ),
+          ),
+        )
+      : Center(
+          child: Image.asset(
+            'assets/images/violin.png',
+            width: w * 0.45,
+            fit: BoxFit.contain,
+          ),
+        ),
+),
 
               SizedBox(height: h * 0.015),
 
