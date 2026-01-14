@@ -81,14 +81,13 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Treasure chest image - FIXED PATH
+                // Treasure chest image
                 Image.asset(
-                  'assets/images/treasure_chest.png', // Changed from 'images/' to 'assets/images/'
+                  'assets/images/treasure_chest.png',
                   width: w * 0.5,
                   height: w * 0.5,
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) {
-                    // Fallback if image doesn't load
                     return Text(
                       '💰',
                       style: TextStyle(fontSize: w * 0.3),
@@ -176,9 +175,25 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // Title - Made responsive and smaller
+              // Back arrow at top left
+              Align(
+                alignment: Alignment.topLeft,
+                child: Padding(
+                  padding: EdgeInsets.only(left: w * 0.01, top: h * 0.005),
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: const Color(0xFFB22222),
+                      size: w * 0.06,
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              ),
+
+              // Title with swords
               Padding(
-                padding: EdgeInsets.only(top: h * 0.04, bottom: h * 0.04),
+                padding: EdgeInsets.only(top: h * 0.01, bottom: h * 0.02),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -189,7 +204,7 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                         'Knight\'s Practice',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: w * 0.07, // Reduced from 0.1
+                          fontSize: w * 0.07,
                           fontWeight: FontWeight.bold,
                           color: const Color(0xFFB22222),
                         ),
@@ -201,9 +216,9 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                 ),
               ),
 
-              // 🎻 Violin + Bow Stack - Responsive
+              // 🎻 Violin + Bow Stack - Made smaller and more responsive
               SizedBox(
-                height: h * 0.25,
+                height: h * 0.18,
                 child: Stack(
                   clipBehavior: Clip.none,
                   alignment: Alignment.center,
@@ -213,8 +228,8 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                       angle: -0.51,
                       child: Image.asset(
                         'assets/images/violin.png',
-                        width: w * 0.6,
-                        height: h * 0.5,
+                        width: w * 0.45,
+                        height: h * 0.4,
                         fit: BoxFit.contain,
                       ),
                     ),
@@ -235,26 +250,27 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                 ),
               ),
 
-              // 🏆 Tokens - Responsive
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: h * 0.025),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildToken(_token1Full, w),
-                    SizedBox(width: w * 0.05),
-                    _buildToken(_token2Full, w),
-                    SizedBox(width: w * 0.05),
-                    _buildToken(_token3Full, w),
-                  ],
-                ),
+              SizedBox(height: h * 0.015),
+
+              // 🏆 Tokens - Made smaller and more compact
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildToken(_token1Full, w),
+                  SizedBox(width: w * 0.03),
+                  _buildToken(_token2Full, w),
+                  SizedBox(width: w * 0.03),
+                  _buildToken(_token3Full, w),
+                ],
               ),
 
-              // Timer Display - Responsive
+              SizedBox(height: h * 0.02),
+
+              // Timer Display - Made more compact
               Container(
                 padding: EdgeInsets.symmetric(
-                  horizontal: w * 0.1,
-                  vertical: h * 0.02,
+                  horizontal: w * 0.08,
+                  vertical: h * 0.015,
                 ),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
@@ -276,125 +292,127 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                 child: Text(
                   _formatTime(),
                   style: TextStyle(
-                    fontSize: w * 0.12,
+                    fontSize: w * 0.1,
                     color: const Color(0xFF2a2a2a),
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
 
-              Padding(
-                padding: EdgeInsets.only(top: h * 0.01),
+              SizedBox(height: h * 0.008),
+
+              // Minutes text
+              Text(
+                _formatMinutes(),
+                style: TextStyle(
+                  fontSize: w * 0.045,
+                  color: const Color(0xFF8B0000),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+
+              SizedBox(height: h * 0.03),
+
+              // ▶ / ⏸ Button and Reset Button - More compact
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: _startPause,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF8C00),
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: w * 0.06,
+                        vertical: h * 0.015,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(50),
+                        side: const BorderSide(
+                            color: Color.fromARGB(99, 168, 158, 145), width: 3),
+                      ),
+                      elevation: 6,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_isRunning ? '⏸' : '▶',
+                            style: TextStyle(fontSize: w * 0.045)),
+                        SizedBox(width: w * 0.02),
+                        Text(
+                          _isRunning ? 'Pause' : 'Start',
+                          style: TextStyle(
+                            fontSize: w * 0.045,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: w * 0.04),
+                  ElevatedButton(
+                    onPressed: _reset,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFB22222),
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: w * 0.06,
+                        vertical: h * 0.015,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(50),
+                        side: const BorderSide(
+                            color: Color.fromARGB(99, 168, 158, 145), width: 3),
+                      ),
+                      elevation: 6,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('↺', style: TextStyle(fontSize: w * 0.045)),
+                        SizedBox(width: w * 0.02),
+                        Text(
+                          'Reset',
+                          style: TextStyle(
+                            fontSize: w * 0.045,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              SizedBox(height: h * 0.02),
+
+              // Stop - Finished button
+              ElevatedButton(
+                onPressed: _showFinishedDialog,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF8B0000),
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: w * 0.1,
+                    vertical: h * 0.015,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                    side: const BorderSide(
+                        color: Color.fromARGB(99, 168, 158, 145), width: 3),
+                  ),
+                  elevation: 6,
+                ),
                 child: Text(
-                  _formatMinutes(),
+                  'Stop - Finished',
                   style: TextStyle(
-                    fontSize: w * 0.05,
-                    color: const Color(0xFF8B0000),
+                    fontSize: w * 0.045,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
 
-              // ▶ / ⏸ Button and Reset Button - Responsive
-              Padding(
-                padding: EdgeInsets.only(top: h * 0.04),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ElevatedButton(
-                      onPressed: _startPause,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF8C00),
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: w * 0.08,
-                          vertical: h * 0.02,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(50),
-                          side: const BorderSide(
-                              color: Color.fromARGB(99, 168, 158, 145), width: 3),
-                        ),
-                        elevation: 6,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(_isRunning ? '⏸' : '▶',
-                              style: TextStyle(fontSize: w * 0.05)),
-                          SizedBox(width: w * 0.02),
-                          Text(
-                            _isRunning ? 'Pause' : 'Start',
-                            style: TextStyle(
-                              fontSize: w * 0.05,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: w * 0.04),
-                    ElevatedButton(
-                      onPressed: _reset,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFB22222),
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: w * 0.08,
-                          vertical: h * 0.02,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(50),
-                          side: const BorderSide(
-                              color: Color.fromARGB(99, 168, 158, 145), width: 3),
-                        ),
-                        elevation: 6,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('↺', style: TextStyle(fontSize: w * 0.05)),
-                          SizedBox(width: w * 0.02),
-                          Text(
-                            'Reset',
-                            style: TextStyle(
-                              fontSize: w * 0.05,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Stop - Finished button - Responsive
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: h * 0.04),
-                child: ElevatedButton(
-                  onPressed: _showFinishedDialog,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8B0000),
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: w * 0.1,
-                      vertical: h * 0.02,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(50),
-                      side: const BorderSide(
-                          color: Color.fromARGB(99, 168, 158, 145), width: 3),
-                    ),
-                    elevation: 6,
-                  ),
-                  child: Text(
-                    'Stop - Finished',
-                    style: TextStyle(
-                      fontSize: w * 0.05,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
+              SizedBox(height: h * 0.02),
             ],
           ),
         ),
@@ -408,7 +426,7 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
       child: Text(
         '🏆',
         style: TextStyle(
-          fontSize: w * 0.1,
+          fontSize: w * 0.08,
           shadows: isFull
               ? [
                   Shadow(

@@ -48,6 +48,19 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
     super.initState();
     _loadTokens();
     
+    // Set audio mode for better Android compatibility
+    _audioPlayer.setAudioContext(
+      AudioContext(
+        android: AudioContextAndroid(
+          isSpeakerphoneOn: true,
+          stayAwake: false,
+          contentType: AndroidContentType.music,
+          usageType: AndroidUsageType.media,
+          audioFocus: AndroidAudioFocus.gain,
+        ),
+      ),
+    );
+    
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -74,20 +87,61 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
     });
 
     try {
-      String audioFile = _currentLevel == 1 ? 'Knockrythm1.mp3' : 'Knockrythm2.mp3';
-      await _audioPlayer.play(AssetSource('audio/$audioFile'));
+      // Try multiple file formats
+      String audioFile = _currentLevel == 1 ? 'Knockrythm1' : 'Knockrythm2';
       
-      await Future.delayed(const Duration(seconds: 7));
+      // Stop any currently playing audio
+      await _audioPlayer.stop();
+      await _audioPlayer.release();
       
-      setState(() {
-        _isListening = false;
-        if (!isSecondListen) {
-          _hasPlayedFirstTime = true;
-          _showQuizDialog();
-        } else {
-          _hasPlayedSecondTime = true;
+      // Try .mp3 first, then .m4a
+      bool played = false;
+      for (String extension in ['.mp3', '.m4a']) {
+        try {
+          await _audioPlayer.play(AssetSource('audio/$audioFile$extension'));
+          played = true;
+          print('Successfully playing: audio/$audioFile$extension');
+          break;
+        } catch (e) {
+          print('Failed to play audio/$audioFile$extension: $e');
+          continue;
+        }
+      }
+      
+      if (!played) {
+        throw Exception('Could not play audio file in any format');
+      }
+      
+      // Listen for completion
+      _audioPlayer.onPlayerComplete.listen((_) {
+        if (mounted) {
+          setState(() {
+            _isListening = false;
+            if (!isSecondListen) {
+              _hasPlayedFirstTime = true;
+              _showQuizDialog();
+            } else {
+              _hasPlayedSecondTime = true;
+            }
+          });
         }
       });
+      
+      // Fallback timer in case onPlayerComplete doesn't fire
+      Future.delayed(const Duration(seconds: 8), () {
+        if (mounted && _isListening) {
+          setState(() {
+            _isListening = false;
+            if (!isSecondListen) {
+              _hasPlayedFirstTime = true;
+              _showQuizDialog();
+            } else {
+              _hasPlayedSecondTime = true;
+            }
+          });
+        }
+      });
+      
     } catch (e) {
       print('Error playing audio: $e');
       

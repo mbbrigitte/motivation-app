@@ -172,6 +172,11 @@ class TuningQuestionScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFDAA520),
+      appBar: AppBar(
+        title: const Text('Tuning Help'),
+        backgroundColor: Colors.red[900],
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: Center(
           child: Padding(
