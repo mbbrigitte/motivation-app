@@ -6,7 +6,7 @@ import '../goal_reached.dart';
 
 class OpenGatesChallenge extends StatefulWidget {
   final bool isReplay;
-  
+
   const OpenGatesChallenge({super.key, this.isReplay = false});
 
   @override
@@ -16,7 +16,7 @@ class OpenGatesChallenge extends StatefulWidget {
 class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTickerProviderStateMixin {
   final AudioPlayer _audioPlayer = AudioPlayer();
   int _currentTokens = 0;
-  
+
   // Challenge state
   bool _isListening = false;
   bool _hasPlayedFirstTime = false;
@@ -26,18 +26,22 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
   bool _showResult = false;
   bool _success = false;
   int _currentLevel = 1;
-  
+
+  // Playback control flags
+  bool _isSecondListenPlaying = false; // true when current play is second listen
+  bool _quizShownForLevel = false; // ensure quiz only shown once per level
+
   // Tap recording
   List<int> _userTapTimestamps = [];
   List<int> _userTapIntervals = [];
-  
+
   final Map<int, List<int>> _expectedIntervals = {
     1: [350, 700, 350, 350, 700, 350, 350, 700, 350, 350], // 10 intervals = 11 knocks
     2: [850, 300, 650, 600, 600, 350, 300], // 7 intervals = 8 knocks
   };
-  
+
   final int _tolerance = 200;
-  
+
   // Animation
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -47,7 +51,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
   void initState() {
     super.initState();
     _loadTokens();
-    
+
     // Set audio mode for better Android compatibility
     _audioPlayer.setAudioContext(
       AudioContext(
@@ -60,7 +64,29 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
         ),
       ),
     );
-    
+
+    // Attach onPlayerComplete listener ONCE to avoid multiple firings
+    _audioPlayer.onPlayerComplete.listen((_) {
+      if (!mounted) return;
+
+      setState(() {
+        _isListening = false;
+
+        // Only show the quiz on the first listen of the current level,
+        // and only if the quiz hasn't already been shown and hasn't been answered.
+        if (!_isSecondListenPlaying) {
+          _hasPlayedFirstTime = true;
+          if (!_quizShownForLevel && !_hasAnsweredQuiz) {
+            _quizShownForLevel = true;
+            // schedule showing the quiz after state settles
+            Future.microtask(() => _showQuizDialog());
+          }
+        } else {
+          _hasPlayedSecondTime = true;
+        }
+      });
+    });
+
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -68,7 +94,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
     );
-    
+
     if (!widget.isReplay) {
       StorageService.unlockChallenge('opengates_challenge');
     }
@@ -82,109 +108,76 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
   }
 
   Future<void> _playRhythmAudio({bool isSecondListen = false}) async {
+    // prevent overlapping requests
+    if (_isListening) return;
+
     setState(() {
       _isListening = true;
+      _isSecondListenPlaying = isSecondListen;
+      // Only reset quizShown for a fresh "first listen" of the level
+      if (!isSecondListen) {
+        _quizShownForLevel = false;
+        // Also reset answered flag so quiz can be answered for this level
+        _hasAnsweredQuiz = false;
+      }
     });
 
     try {
-      // Try multiple file formats
-      String audioFile = _currentLevel == 1 ? 'Knockrythm1' : 'Knockrythm2';
-      
-      // Stop any currently playing audio
+      final String audioFile = _currentLevel == 1 ? 'Knockrythm1' : 'Knockrythm2';
+
+      // Stop any currently playing audio and reset mode
       await _audioPlayer.stop();
-      
-await _audioPlayer.play(
-  AssetSource('audio/$audioFile.mp3'),
-);
-      
-      // Listen for completion
-      _audioPlayer.onPlayerComplete.listen((_) {
-        if (mounted) {
-          setState(() {
-            _isListening = false;
-            if (!isSecondListen) {
-              _hasPlayedFirstTime = true;
-              _showQuizDialog();
-            } else {
-              _hasPlayedSecondTime = true;
-            }
-          });
-        }
-      });
-      
-      // Fallback timer in case onPlayerComplete doesn't fire
-      Future.delayed(const Duration(seconds: 8), () {
-        if (mounted && _isListening) {
-          setState(() {
-            _isListening = false;
-            if (!isSecondListen) {
-              _hasPlayedFirstTime = true;
-              _showQuizDialog();
-            } else {
-              _hasPlayedSecondTime = true;
-            }
-          });
-        }
-      });
-      
-    } catch (e) {
-      print('Error playing audio: $e');
-      
-      // Show error dialog with skip option
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            backgroundColor: Colors.orange[700]!,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: Colors.white, width: 3),
-            ),
-            content: const Text(
-              'Audio could not be played.\n\nWould you like to skip the audio and continue?',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  setState(() {
-                    _isListening = false;
-                    if (!isSecondListen) {
-                      _hasPlayedFirstTime = true;
-                      _showQuizDialog();
-                    } else {
-                      _hasPlayedSecondTime = true;
-                    }
-                  });
-                },
-                child: const Text(
-                  'Continue',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
+      await _audioPlayer.setReleaseMode(ReleaseMode.stop);
+
+      // Start playback
+      await _audioPlayer.play(AssetSource('audio/$audioFile.mp3'));
+
+      // Wait until playback actually starts (or timeout)
+      final started = await Future.any([
+        _audioPlayer.onPlayerStateChanged.firstWhere((s) => s == PlayerState.playing),
+        Future.delayed(const Duration(seconds: 5), () => null),
+      ]);
+
+      if (started == null) {
+        // playback didn't start in time -> handle as failure
+        _handleAudioFailure(isSecondListen);
+        return;
       }
-      
-      setState(() {
-        _isListening = false;
-      });
+
+      // If started, let onPlayerComplete handle the rest.
+    } catch (e) {
+      debugPrint('Error playing audio: $e');
+      _handleAudioFailure(isSecondListen);
+    }
+  }
+
+  void _handleAudioFailure(bool isSecondListen) {
+    if (!mounted) return;
+
+    // Prevent the quiz from being shown multiple times via multiple failure paths
+    final shouldShowQuiz = !isSecondListen && !_quizShownForLevel && !_hasAnsweredQuiz;
+
+    setState(() {
+      _isListening = false;
+      if (!isSecondListen) {
+        _hasPlayedFirstTime = true;
+        if (shouldShowQuiz) {
+          _quizShownForLevel = true;
+        }
+      } else {
+        _hasPlayedSecondTime = true;
+      }
+    });
+
+    if (shouldShowQuiz) {
+      Future.microtask(() => _showQuizDialog());
     }
   }
 
   void _showQuizDialog() {
+    // Safety: show only if not answered (and flag ensures it can't be called twice for the level)
+    if (_hasAnsweredQuiz) return;
+
     final quizData = _currentLevel == 1
         ? {
             'question': 'What did this knocking rhythm remind you of?',
@@ -256,16 +249,14 @@ await _audioPlayer.play(
   }
 
   Future<void> _handleQuizAnswer(bool isCorrect) async {
-    final correctAnswer = _currentLevel == 1 
-        ? 'C: O Come, Little Children' 
-        : 'B: May Song';
-    
+    final correctAnswer = _currentLevel == 1 ? 'C: O Come, Little Children' : 'B: May Song';
+
     setState(() {
       _hasAnsweredQuiz = true;
     });
 
     if (!isCorrect) {
-      // Show correct answer
+      // Show correct answer and prompt to listen again
       if (mounted) {
         showDialog(
           context: context,
@@ -289,7 +280,6 @@ await _audioPlayer.play(
         );
 
         await Future.delayed(const Duration(seconds: 3));
-
         if (mounted) {
           Navigator.of(context).pop();
         }
@@ -319,7 +309,6 @@ await _audioPlayer.play(
         );
 
         await Future.delayed(const Duration(seconds: 3));
-
         if (mounted) {
           Navigator.of(context).pop();
         }
@@ -340,14 +329,14 @@ await _audioPlayer.play(
     if (!_isRecording) return;
 
     int now = DateTime.now().millisecondsSinceEpoch;
-    
+
     setState(() {
       _userTapTimestamps.add(now);
       _showTapFeedback = true;
     });
 
     _pulseController.forward().then((_) => _pulseController.reverse());
-    
+
     Future.delayed(const Duration(milliseconds: 200), () {
       if (mounted) {
         setState(() {
@@ -378,7 +367,7 @@ await _audioPlayer.play(
 
   void _checkRhythm() {
     List<int> expected = _expectedIntervals[_currentLevel] ?? [];
-    
+
     if (_userTapIntervals.length != expected.length) {
       setState(() {
         _success = false;
@@ -437,10 +426,13 @@ await _audioPlayer.play(
           Navigator.of(context).pop();
           setState(() {
             _currentLevel = 2;
+            // Reset relevant flags for level 2
             _hasPlayedFirstTime = false;
             _hasAnsweredQuiz = false;
             _hasPlayedSecondTime = false;
             _showResult = false;
+            _quizShownForLevel = false;
+            _isSecondListenPlaying = false;
           });
         }
       }
@@ -589,8 +581,8 @@ await _audioPlayer.play(
                             height: screenWidth * 0.48,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _showTapFeedback 
-                                  ? Colors.red[700] 
+                              color: _showTapFeedback
+                                  ? Colors.red[700]
                                   : Colors.red[900],
                               border: Border.all(color: Colors.white, width: 4),
                               boxShadow: [
@@ -842,6 +834,7 @@ await _audioPlayer.play(
                               setState(() {
                                 _showResult = false;
                                 _hasPlayedSecondTime = false;
+                                // keep _quizShownForLevel as-is: if quiz was shown, we don't want to show it again
                               });
                             },
                             style: ElevatedButton.styleFrom(
