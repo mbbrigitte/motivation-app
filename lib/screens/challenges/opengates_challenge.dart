@@ -64,10 +64,10 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
             category: AVAudioSessionCategory.playback,
             options: [AVAudioSessionOptions.mixWithOthers],
           ),
-          android: AndroidAudioContext(
+          android: AudioContextAndroid(
             isSpeakerphoneOn: false,
             stayAwake: true,
-            contentType: AndroidContentType.music,
+            contentType: AndroidContentType.speech,
             usageType: AndroidUsageType.media,
             audioFocus: AndroidAudioFocus.none,
           ),
