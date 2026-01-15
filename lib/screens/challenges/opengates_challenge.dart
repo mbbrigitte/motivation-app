@@ -13,35 +13,28 @@ class OpenGatesChallenge extends StatefulWidget {
   State<OpenGatesChallenge> createState() => _OpenGatesChallengeState();
 }
 
-class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTickerProviderStateMixin {
-  final AudioPlayer _audioPlayer = AudioPlayer();
+class _OpenGatesChallengeState extends State<OpenGatesChallenge> 
+    with TickerProviderStateMixin {
   int _currentTokens = 0;
-  
-  // Challenge state
-  bool _isListening = false;
-  bool _hasAnsweredQuiz = false;
-  bool _hasPlayedFirstTime = false;
-  bool _hasPlayedSecondTime = false;
-  bool _isRecording = false;
-  bool _showResult = false;
-  bool _success = false;
   int _currentLevel = 1;
+  bool _isPlaying = false;
+  bool _hasAnsweredQuiz = false;
+  bool _showKnockButton = false;
+  bool _isRecording = false;
+  bool _showTapFeedback = false;
   
-  // Tap recording
-  List<int> _userTapTimestamps = [];
-  List<int> _userTapIntervals = [];
+  final AudioPlayer _audioPlayer = AudioPlayer();
   
-  final Map<int, List<int>> _expectedIntervals = {
-    1: [350, 700, 350, 350, 700, 350, 350, 700, 350, 350], // 10 intervals = 11 knocks
-    2: [850, 300, 650, 600, 600, 350, 300], // 7 intervals = 8 knocks
-  };
-  
-  final int _tolerance = 200;
-  
-  // Animation
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
-  bool _showTapFeedback = false;
+  
+  final List<int> _knockTimestamps = [];
+  final int _tolerance = 200;
+  
+  final Map<int, List<int>> _expectedIntervals = {
+    1: [350, 700, 350, 350, 700, 350, 350, 700, 350, 350], // 11 knocks
+    2: [850, 300, 650, 600, 600, 350, 300], // 8 knocks
+  };
 
   @override
   void initState() {
@@ -49,21 +42,17 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
     _loadTokens();
     
     _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
-    );
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
+    )..repeat(reverse: true);
+    
+    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
     
     if (!widget.isReplay) {
       StorageService.unlockChallenge('opengates_challenge');
     }
-    
-    // Show quiz immediately
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showQuizDialog();
-    });
   }
 
   Future<void> _loadTokens() async {
@@ -73,37 +62,65 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
     });
   }
 
-  Future<void> _playRhythmAudio({bool isSecondListen = false}) async {
+  Future<void> _playAudio() async {
     setState(() {
-      _isListening = true;
+      _isPlaying = true;
     });
-
+    
     try {
-      String audioFile = _currentLevel == 1 ? 'Knockrythm1.mp3' : 'Knockrythm2.mp3';
-      await _audioPlayer.play(AssetSource('audio/$audioFile'));
+      await _audioPlayer.stop();
+      String audioPath = _currentLevel == 1 
+          ? 'audio/Knockrythm1.mp3' 
+          : 'audio/Knockrythm2.mp3';
+      await _audioPlayer.play(AssetSource(audioPath));
       
-      await Future.delayed(const Duration(seconds: 15));
-      
-      setState(() {
-        _isListening = false;
-        if (!isSecondListen) {
-          _hasPlayedFirstTime = true;
-        } else {
-          _hasPlayedSecondTime = true;
+      _audioPlayer.onPlayerComplete.listen((_) {
+        if (mounted) {
+          setState(() {
+            _isPlaying = false;
+          });
         }
       });
     } catch (e) {
       print('Error playing audio: $e');
       setState(() {
-        _isListening = false;
+        _isPlaying = false;
       });
     }
   }
 
-  void _showQuizDialog() {
-    final quizData = _currentLevel == 1
+  void _onQuizAnswerSelected(int selectedIndex) {
+    if (_hasAnsweredQuiz) return;
+    
+    setState(() {
+      _hasAnsweredQuiz = true;
+    });
+    
+    final quizData = _getQuizData();
+    bool isCorrect = selectedIndex == quizData['correct'];
+    
+    String message;
+    if (isCorrect) {
+      message = 'Correct!\n\nNow listen to the rhythm and try to knock it!';
+    } else {
+      String correctAnswer = quizData['options'][quizData['correct']];
+      message = 'The correct answer was:\n$correctAnswer\n\nLet\'s listen to the rhythm!';
+    }
+    
+    _showDialog(
+      message,
+      onDismiss: () {
+        setState(() {
+          _showKnockButton = true;
+        });
+      },
+    );
+  }
+
+  Map<String, dynamic> _getQuizData() {
+    return _currentLevel == 1
         ? {
-            'question': 'What did this knocking rhythm remind you of?',
+            'question': 'What does this rhythm remind you of?',
             'options': [
               'A: Song of the Wind',
               'B: Go Tell Aunt Rhody',
@@ -112,292 +129,222 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
             'correct': 2,
           }
         : {
-            'question': 'What did this knocking rhythm remind you of?',
+            'question': 'What does this rhythm remind you of?',
             'options': ['A: Long, Long Ago', 'B: May Song', 'C: Winter Serenade'],
             'correct': 1,
           };
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.green[700]!,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Colors.white, width: 3),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              quizData['question'] as String,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            ...(quizData['options'] as List<String>).asMap().entries.map((entry) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _handleQuizAnswer(entry.key == quizData['correct']);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text(
-                    entry.value,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red[900],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ],
-        ),
-      ),
-    );
   }
 
-  Future<void> _handleQuizAnswer(bool isCorrect) async {
-    final correctAnswer = _currentLevel == 1 
-        ? 'C: O Come, Little Children' 
-        : 'B: May Song';
-    
-    setState(() {
-      _hasAnsweredQuiz = true;
-    });
-
-    if (!isCorrect) {
-      // Show correct answer
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            backgroundColor: Colors.orange[700]!,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: Colors.white, width: 3),
-            ),
-            content: Text(
-              'The correct answer was:\n$correctAnswer\n\nLet\'s listen to the rhythm!',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        );
-
-        await Future.delayed(const Duration(seconds: 3));
-
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-      }
-    } else {
-      // Correct answer
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            backgroundColor: Colors.green[700]!,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: Colors.white, width: 3),
-            ),
-            content: const Text(
-              'Correct!\n\nNow listen to the rhythm and try to knock it!',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        );
-
-        await Future.delayed(const Duration(seconds: 3));
-
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
-      }
-    }
-  }
-
-  void _startRecording() {
+  void _startKnocking() {
     setState(() {
       _isRecording = true;
-      _userTapTimestamps.clear();
-      _userTapIntervals.clear();
-      _showResult = false;
+      _knockTimestamps.clear();
     });
   }
 
   void _onTap() {
     if (!_isRecording) return;
-
-    int now = DateTime.now().millisecondsSinceEpoch;
     
     setState(() {
-      _userTapTimestamps.add(now);
       _showTapFeedback = true;
     });
-
-    _pulseController.forward().then((_) => _pulseController.reverse());
     
-    Future.delayed(const Duration(milliseconds: 200), () {
+    _knockTimestamps.add(DateTime.now().millisecondsSinceEpoch);
+    
+    Future.delayed(const Duration(milliseconds: 100), () {
       if (mounted) {
         setState(() {
           _showTapFeedback = false;
         });
       }
     });
-
-    int expectedTaps = (_expectedIntervals[_currentLevel]?.length ?? 0) + 1;
-    if (_userTapTimestamps.length >= expectedTaps) {
-      _stopRecording();
-    }
   }
 
-  void _stopRecording() {
-    if (!_isRecording || _userTapTimestamps.length < 2) return;
-
-    for (int i = 1; i < _userTapTimestamps.length; i++) {
-      _userTapIntervals.add(_userTapTimestamps[i] - _userTapTimestamps[i - 1]);
-    }
-
+  void _stopKnocking() {
     setState(() {
       _isRecording = false;
     });
-
-    _checkRhythm();
-  }
-
-  void _checkRhythm() {
-    List<int> expected = _expectedIntervals[_currentLevel] ?? [];
     
-    if (_userTapIntervals.length != expected.length) {
-      setState(() {
-        _success = false;
-        _showResult = true;
-      });
+    if (_knockTimestamps.length < 2) {
+      _showDialog('Please tap at least 2 times to create a rhythm!');
       return;
     }
+    
+    _validateKnocking();
+  }
 
-    bool allMatch = true;
-    for (int i = 0; i < expected.length; i++) {
-      int difference = (_userTapIntervals[i] - expected[i]).abs();
-      if (difference > _tolerance) {
-        allMatch = false;
+  void _validateKnocking() {
+    List<int> intervals = [];
+    for (int i = 1; i < _knockTimestamps.length; i++) {
+      intervals.add(_knockTimestamps[i] - _knockTimestamps[i - 1]);
+    }
+    
+    List<int> expectedIntervals = _expectedIntervals[_currentLevel]!;
+    
+    if (intervals.length != expectedIntervals.length) {
+      _showIncorrectDialog();
+      return;
+    }
+    
+    bool isCorrect = true;
+    for (int i = 0; i < intervals.length; i++) {
+      if ((intervals[i] - expectedIntervals[i]).abs() > _tolerance) {
+        isCorrect = false;
         break;
       }
     }
-
-    setState(() {
-      _success = allMatch;
-      _showResult = true;
-    });
-
-    if (_success) {
-      _onRhythmSuccess();
+    
+    if (isCorrect) {
+      _onCorrectKnocking();
+    } else {
+      _showIncorrectDialog();
     }
   }
 
-  Future<void> _onRhythmSuccess() async {
-    if (_currentLevel == 1) {
-      // First level complete, move to level 2
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            backgroundColor: Colors.green[700]!,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: Colors.white, width: 3),
-            ),
-            content: const Text(
-              'Great job! But the door needs a secret knock...\n\nTry the second pattern!',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-            ),
+  void _showIncorrectDialog() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFFDAA520),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.red[900]!, width: 3),
+        ),
+        content: Text(
+          'Not quite, do you want to try again or move on?',
+          style: TextStyle(
+            fontSize: screenWidth * 0.05,
+            fontWeight: FontWeight.bold,
+            color: Colors.red[900],
           ),
-        );
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  setState(() {
+                    _knockTimestamps.clear();
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[900],
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: screenWidth * 0.06,
+                    vertical: screenWidth * 0.03,
+                  ),
+                ),
+                child: Text(
+                  'Retry',
+                  style: TextStyle(fontSize: screenWidth * 0.04),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _moveToNextLevel();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[900],
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: screenWidth * 0.06,
+                    vertical: screenWidth * 0.03,
+                  ),
+                ),
+                child: Text(
+                  'Continue',
+                  style: TextStyle(fontSize: screenWidth * 0.04),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-        await Future.delayed(const Duration(seconds: 3));
-
-        if (mounted) {
-          Navigator.of(context).pop();
-          setState(() {
-            _currentLevel = 2;
-            _hasAnsweredQuiz = false;
-            _hasPlayedFirstTime = false;
-            _hasPlayedSecondTime = false;
-            _showResult = false;
-          });
-          _showQuizDialog();
+  void _onCorrectKnocking() {
+    String message = _currentLevel == 1
+        ? 'Great job! But the door is not opening. It must have been the wrong pattern. Try the second one!'
+        : 'Great job, the door is opening. ';
+    
+    _showDialog(
+      message,
+      onDismiss: () {
+        if (_currentLevel == 1) {
+          _moveToNextLevel();
+        } else {
+          _onChallengeComplete();
         }
-      }
+      },
+    );
+  }
+
+  void _moveToNextLevel() {
+    if (_currentLevel == 1) {
+      setState(() {
+        _currentLevel = 2;
+        _hasAnsweredQuiz = false;
+        _showKnockButton = false;
+        _knockTimestamps.clear();
+      });
     } else {
-      // Both levels complete!
-      if (!widget.isReplay) {
-        await _addToken();
-      }
+      // Already on level 2, complete the challenge
+      _onChallengeComplete();
+    }
+  }
+
+  Future<void> _onChallengeComplete() async {
+    await _audioPlayer.stop();
+    
+    if (!widget.isReplay) {
+      await _addToken();
+    }
+
+    if (mounted) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.red[700]!,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Colors.white, width: 3),
+          ),
+          content: Text(
+            widget.isReplay
+                ? 'Congratulations, you are granted access to the castle!\n\nThe doors are open!'
+                : 'Congratulations, you are granted access to the castle!\n\nThe doors are open!\n\nYou earned one token!\nYou now have a total of $_currentTokens tokens!',
+            style: TextStyle(
+              fontSize: screenWidth * 0.05,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+
+      await Future.delayed(const Duration(seconds: 4));
 
       if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            backgroundColor: Colors.green[700]!,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: Colors.white, width: 3),
-            ),
-            content: Text(
-              widget.isReplay
-                  ? 'Congratulations, you are granted access to the castle!\n\nThe doors open!'
-                  : 'Congratulations, you are granted access to the castle!\n\nThe doors open!\n\nYou earned one token!\nYou now have a total of $_currentTokens tokens!',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        );
-
-        await Future.delayed(const Duration(seconds: 3));
-
-        if (mounted) {
+        Navigator.of(context).pop();
+        if (widget.isReplay) {
           Navigator.of(context).pop();
+        } else {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => GoalReached()),
+            MaterialPageRoute(builder: (context) => const GoalReached()),
           );
         }
       }
@@ -418,6 +365,53 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
     });
   }
 
+  void _showDialog(String message, {VoidCallback? onDismiss}) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFFDAA520),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.red[900]!, width: 3),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(
+            fontSize: screenWidth * 0.05,
+            fontWeight: FontWeight.bold,
+            color: Colors.red[900],
+          ),
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          Center(
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                if (onDismiss != null) onDismiss();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[900],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(
+                  horizontal: screenWidth * 0.08,
+                  vertical: screenWidth * 0.03,
+                ),
+              ),
+              child: Text(
+                'OK',
+                style: TextStyle(fontSize: screenWidth * 0.045),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _audioPlayer.dispose();
@@ -429,11 +423,15 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenWidth < 400;
 
     return Scaffold(
       backgroundColor: const Color(0xFFDAA520),
       appBar: AppBar(
-        title: Text('The Castle Door - Level $_currentLevel'),
+        title: Text(
+          'Open the Castle Gates - Level $_currentLevel',
+          style: TextStyle(fontSize: screenWidth * 0.045),
+        ),
         backgroundColor: Colors.red[900],
         centerTitle: true,
       ),
@@ -443,32 +441,25 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
           child: Column(
             children: [
               SizedBox(height: screenHeight * 0.02),
-
-              // Instruction text
-              Container(
-                padding: EdgeInsets.all(screenWidth * 0.04),
-                decoration: BoxDecoration(
-                  color: Colors.red[900],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: Text(
-                  _getInstructionText(),
+              
+              // Instruction text (only show on level 1)
+              if (_currentLevel == 1) ...[
+                Text(
+                  'You reached the castle, but the doors are closed. You need the correct knocking pattern so that someone lets you in.',
                   style: TextStyle(
                     fontSize: screenWidth * 0.045,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: Colors.green[800],
                   ),
                   textAlign: TextAlign.center,
                 ),
-              ),
+                SizedBox(height: screenHeight * 0.03),
+              ],
 
-              SizedBox(height: screenHeight * 0.01),
-
-              // Door with overlaid knock button
+              // Door image with optional knock button overlay
               SizedBox(
-                width: screenWidth * 0.7,
-                height: screenWidth * 0.7 * 1.5,
+                width: screenWidth * 0.525,
+                height: screenWidth * 0.525 * 1.5,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
@@ -488,8 +479,8 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                           opacity: _isRecording ? 0.7 : 1.0,
                           child: Image.asset(
                             'assets/images/doors.webp',
-                            width: screenWidth * 0.7,
-                            height: screenWidth * 0.7 * 1.5,
+                            width: screenWidth * 0.525,
+                            height: screenWidth * 0.525 * 1.5,
                             fit: BoxFit.contain,
                           ),
                         ),
@@ -502,8 +493,8 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                         child: ScaleTransition(
                           scale: _pulseAnimation,
                           child: Container(
-                            width: screenWidth * 0.48,
-                            height: screenWidth * 0.48,
+                            width: screenWidth * 0.36,
+                            height: screenWidth * 0.36,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: _showTapFeedback 
@@ -524,14 +515,24 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                                 children: [
                                   Icon(
                                     Icons.touch_app,
-                                    size: screenWidth * 0.12,
+                                    size: screenWidth * 0.09,
                                     color: Colors.white,
                                   ),
-                                  SizedBox(height: screenHeight * 0.01),
+                                  SizedBox(height: screenHeight * 0.005),
                                   Text(
                                     'KNOCK\nHERE',
                                     style: TextStyle(
-                                      fontSize: screenWidth * 0.05,
+                                      fontSize: screenWidth * 0.038,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  SizedBox(height: screenHeight * 0.008),
+                                  Text(
+                                    'Knocks: ${_knockTimestamps.length}/${_expectedIntervals[_currentLevel]!.length + 1}',
+                                    style: TextStyle(
+                                      fontSize: screenWidth * 0.035,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
                                     ),
@@ -547,239 +548,107 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
                 ),
               ),
 
-              SizedBox(height: screenHeight * 0.02),
+              SizedBox(height: screenHeight * 0.03),
 
-              // Step 1: First Listen Button (after quiz)
-              if (_hasAnsweredQuiz && !_hasPlayedFirstTime && !_isListening)
+              // Buttons based on current state
+              if (!_hasAnsweredQuiz) ...[
                 ElevatedButton.icon(
-                  onPressed: () => _playRhythmAudio(isSecondListen: false),
+                  onPressed: _isPlaying ? null : _playAudio,
+                  icon: Icon(
+                    _isPlaying ? Icons.volume_up : Icons.play_arrow,
+                    size: screenWidth * 0.06,
+                  ),
+                  label: Text(
+                    _isPlaying ? 'Playing...' : 'Listen to the rhythm',
+                    style: TextStyle(
+                      fontSize: screenWidth * 0.045,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[700],
+                    backgroundColor: Colors.red[900],
+                    foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(
                       horizontal: screenWidth * 0.08,
                       vertical: screenHeight * 0.02,
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  icon: Icon(
-                    Icons.volume_up,
-                    size: screenWidth * 0.08,
-                    color: Colors.white,
-                  ),
-                  label: Text(
-                    'Listen to the Rhythm',
-                    style: TextStyle(
-                      fontSize: screenWidth * 0.045,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
                   ),
                 ),
-
-              // Listening indicator
-              if (_isListening)
-                Padding(
-                  padding: EdgeInsets.only(top: screenHeight * 0.02),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.hearing, color: Colors.blue[700], size: screenWidth * 0.08),
-                      SizedBox(width: screenWidth * 0.02),
-                      Text(
-                        'Listening...',
+                SizedBox(height: screenHeight * 0.03),
+                
+                // Quiz section
+                _buildQuizSection(screenWidth),
+              ] else if (_showKnockButton) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _isPlaying ? null : _playAudio,
+                      icon: Icon(
+                        _isPlaying ? Icons.volume_up : Icons.replay,
+                        size: screenWidth * 0.05,
+                      ),
+                      label: Text(
+                        _isPlaying ? 'Playing...' : 'Listen',
                         style: TextStyle(
-                          fontSize: screenWidth * 0.045,
+                          fontSize: screenWidth * 0.04,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue[900],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-
-              // Step 2: Second Listen Button (after first listen)
-              if (_hasPlayedFirstTime && !_hasPlayedSecondTime && !_isListening)
-                ElevatedButton.icon(
-                  onPressed: () => _playRhythmAudio(isSecondListen: true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple[700],
-                    padding: EdgeInsets.symmetric(
-                      horizontal: screenWidth * 0.08,
-                      vertical: screenHeight * 0.02,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red[900],
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: screenWidth * 0.05,
+                          vertical: screenHeight * 0.015,
+                        ),
+                      ),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  icon: Icon(
-                    Icons.volume_up,
-                    size: screenWidth * 0.08,
-                    color: Colors.white,
-                  ),
-                  label: Text(
-                    'Listen Again',
-                    style: TextStyle(
-                      fontSize: screenWidth * 0.045,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-
-              // Step 3: Ready to Knock button AND Listen Once More
-              if (_hasPlayedSecondTime && !_isRecording && !_showResult)
-                Padding(
-                  padding: EdgeInsets.only(top: screenHeight * 0.02),
-                  child: Column(
-                    children: [
-                      // Ready to Knock button
+                    if (_isRecording) ...[
+                      SizedBox(width: screenWidth * 0.03),
                       ElevatedButton(
-                        onPressed: _startRecording,
+                        onPressed: _stopKnocking,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[700],
+                          backgroundColor: Colors.orange[700],
+                          foregroundColor: Colors.white,
                           padding: EdgeInsets.symmetric(
-                            horizontal: screenWidth * 0.08,
-                            vertical: screenHeight * 0.02,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            horizontal: screenWidth * 0.05,
+                            vertical: screenHeight * 0.015,
                           ),
                         ),
                         child: Text(
-                          'Ready to Knock!',
-                          style: TextStyle(
-                            fontSize: screenWidth * 0.045,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: screenHeight * 0.015),
-                      // Listen Once More button
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _hasPlayedSecondTime = false;
-                          });
-                          _playRhythmAudio(isSecondListen: true);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange[700],
-                          padding: EdgeInsets.symmetric(
-                            horizontal: screenWidth * 0.08,
-                            vertical: screenHeight * 0.015,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        icon: Icon(
-                          Icons.replay,
-                          size: screenWidth * 0.06,
-                          color: Colors.white,
-                        ),
-                        label: Text(
-                          'Listen Once More',
+                          'Done Knocking',
                           style: TextStyle(
                             fontSize: screenWidth * 0.04,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
                           ),
                         ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
-
-              // Knock counter
-              if (_isRecording)
-                Padding(
-                  padding: EdgeInsets.only(top: screenHeight * 0.02),
-                  child: Text(
-                    'Knocks: ${_userTapTimestamps.length}/${(_expectedIntervals[_currentLevel]?.length ?? 0) + 1}',
-                    style: TextStyle(
-                      fontSize: screenWidth * 0.045,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red[900],
+                SizedBox(height: screenHeight * 0.02),
+                
+                if (!_isRecording)
+                  ElevatedButton(
+                    onPressed: _startKnocking,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[700],
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenWidth * 0.08,
+                        vertical: screenHeight * 0.02,
+                      ),
+                    ),
+                    child: Text(
+                      'Ready to Knock',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.045,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-
-              // Error message and retry
-              if (_showResult && !_success)
-                Padding(
-                  padding: EdgeInsets.only(top: screenHeight * 0.02),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(screenWidth * 0.04),
-                        decoration: BoxDecoration(
-                          color: Colors.red[700],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: Text(
-                          'Not quite right...\nWould you like to try again?',
-                          style: TextStyle(
-                            fontSize: screenWidth * 0.05,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      SizedBox(height: screenHeight * 0.02),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _success = true;
-                              });
-                              _onRhythmSuccess();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red[700],
-                              padding: EdgeInsets.symmetric(
-                                horizontal: screenWidth * 0.08,
-                                vertical: screenHeight * 0.015,
-                              ),
-                            ),
-                            child: const Text(
-                              'No',
-                              style: TextStyle(color: Colors.white, fontSize: 16),
-                            ),
-                          ),
-                          SizedBox(width: screenWidth * 0.04),
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                _showResult = false;
-                                _hasPlayedSecondTime = false;
-                              });
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green[700],
-                              padding: EdgeInsets.symmetric(
-                                horizontal: screenWidth * 0.08,
-                                vertical: screenHeight * 0.015,
-                              ),
-                            ),
-                            child: const Text(
-                              'Yes',
-                              style: TextStyle(color: Colors.white, fontSize: 16),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-              SizedBox(height: screenHeight * 0.02),
+              ],
             ],
           ),
         ),
@@ -787,23 +656,52 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge> with SingleTick
     );
   }
 
-  String _getInstructionText() {
-    if (!_hasAnsweredQuiz) {
-      if (_currentLevel == 1) {
-        return 'You reached the castle, but the doors are closed.\n\nAnswer the question to proceed!';
-      } else {
-        return 'Almost there! Answer the question about the secret knock!';
-      }
-    } else if (!_hasPlayedFirstTime) {
-      return 'Great! Now listen to the rhythm...';
-    } else if (!_hasPlayedSecondTime) {
-      return 'Listen again carefully...';
-    } else if (!_isRecording && !_showResult) {
-      return 'Now knock the rhythm on the door!';
-    } else if (_isRecording) {
-      return 'Knock the rhythm!';
-    } else {
-      return 'Try the rhythm!';
-    }
+  Widget _buildQuizSection(double screenWidth) {
+    final quizData = _getQuizData();
+    
+    return Container(
+      padding: EdgeInsets.all(screenWidth * 0.035),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red[900]!, width: 2),
+      ),
+      child: Column(
+        children: [
+          Text(
+            quizData['question'],
+            style: TextStyle(
+              fontSize: screenWidth * 0.038,
+              fontWeight: FontWeight.bold,
+              color: Colors.red[900],
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: screenWidth * 0.03),
+          ...List.generate(
+            quizData['options'].length,
+            (index) => Padding(
+              padding: EdgeInsets.symmetric(vertical: screenWidth * 0.015),
+              child: ElevatedButton(
+                onPressed: () => _onQuizAnswerSelected(index),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[900],
+                  foregroundColor: Colors.white,
+                  minimumSize: Size(double.infinity, screenWidth * 0.1),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: screenWidth * 0.03,
+                    vertical: screenWidth * 0.025,
+                  ),
+                ),
+                child: Text(
+                  quizData['options'][index],
+                  style: TextStyle(fontSize: screenWidth * 0.035),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
