@@ -39,6 +39,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
   @override
   void initState() {
     super.initState();
+    _initializeAudioPlayer();
     _loadTokens();
     
     _pulseController = AnimationController(
@@ -52,6 +53,28 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
     
     if (!widget.isReplay) {
       StorageService.unlockChallenge('opengates_challenge');
+    }
+  }
+
+  Future<void> _initializeAudioPlayer() async {
+    try {
+      await _audioPlayer.setAudioContext(
+        AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: [AVAudioSessionOptions.mixWithOthers],
+          ),
+          android: AndroidAudioContext(
+            isSpeakerphoneOn: false,
+            stayAwake: true,
+            contentType: AndroidContentType.music,
+            usageType: AndroidUsageType.media,
+            audioFocus: AndroidAudioFocus.none,
+          ),
+        ),
+      );
+    } catch (e) {
+      // Audio context setup failed
     }
   }
 
@@ -82,7 +105,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
         }
       });
     } catch (e) {
-      print('Error playing audio: $e');
       setState(() {
         _isPlaying = false;
       });
