@@ -36,6 +36,8 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
     2: [850, 300, 650, 600, 600, 350, 300], // 8 knocks
   };
 
+  bool _isAudioReady = false;
+
   @override
   void initState() {
     super.initState();
@@ -67,14 +69,19 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
           android: AudioContextAndroid(
             isSpeakerphoneOn: false,
             stayAwake: true,
-            contentType: AndroidContentType.speech,
+            contentType: AndroidContentType.music,
             usageType: AndroidUsageType.media,
             audioFocus: AndroidAudioFocus.none,
           ),
         ),
       );
+      setState(() {
+        _isAudioReady = true;
+      });
     } catch (e) {
-      // Audio context setup failed
+      setState(() {
+        _isAudioReady = true; // Allow trying anyway
+      });
     }
   }
 
@@ -86,6 +93,8 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
   }
 
   Future<void> _playAudio() async {
+    if (!_isAudioReady) return; // Don't play if audio not ready
+    
     setState(() {
       _isPlaying = true;
     });
