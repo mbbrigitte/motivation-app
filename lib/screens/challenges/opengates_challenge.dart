@@ -36,12 +36,9 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
     2: [850, 300, 650, 600, 600, 350, 300], // 8 knocks
   };
 
-  bool _isAudioReady = false;
-
   @override
   void initState() {
     super.initState();
-    _initializeAudioPlayer();
     _loadTokens();
     
     _pulseController = AnimationController(
@@ -58,33 +55,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
     }
   }
 
-  Future<void> _initializeAudioPlayer() async {
-    try {
-      await _audioPlayer.setAudioContext(
-        AudioContext(
-          iOS: AudioContextIOS(
-            category: AVAudioSessionCategory.playback,
-            options: [AVAudioSessionOptions.mixWithOthers],
-          ),
-          android: AudioContextAndroid(
-            isSpeakerphoneOn: false,
-            stayAwake: true,
-            contentType: AndroidContentType.music,
-            usageType: AndroidUsageType.media,
-            audioFocus: AndroidAudioFocus.none,
-          ),
-        ),
-      );
-      setState(() {
-        _isAudioReady = true;
-      });
-    } catch (e) {
-      setState(() {
-        _isAudioReady = true; // Allow trying anyway
-      });
-    }
-  }
-
   Future<void> _loadTokens() async {
     int tokens = await StorageService.loadTokens();
     setState(() {
@@ -93,14 +63,14 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
   }
 
   Future<void> _playAudio() async {
-    if (!_isAudioReady) return; // Don't play if audio not ready
-    
     setState(() {
       _isPlaying = true;
     });
     
     try {
       await _audioPlayer.stop();
+      await Future.delayed(const Duration(milliseconds: 300)); // Android needs delay
+      
       String audioPath = _currentLevel == 1 
           ? 'audio/Knockrythm1.mp3' 
           : 'audio/Knockrythm2.mp3';
