@@ -39,6 +39,7 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
   @override
   void initState() {
     super.initState();
+    _initializeAudioPlayer();
     _loadTokens();
     
     _pulseController = AnimationController(
@@ -55,6 +56,31 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
     }
   }
 
+  Future<void> _initializeAudioPlayer() async {
+    try {
+      // Set release mode to prevent instant completion
+      await _audioPlayer.setReleaseMode(ReleaseMode.stop);
+      
+      await _audioPlayer.setAudioContext(
+        AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: [AVAudioSessionOptions.mixWithOthers],
+          ),
+          android: AudioContextAndroid(
+            isSpeakerphoneOn: false,
+            stayAwake: true,
+            contentType: AndroidContentType.music,
+            usageType: AndroidUsageType.media,
+            audioFocus: AndroidAudioFocus.none,
+          ),
+        ),
+      );
+    } catch (e) {
+      // Audio setup failed
+    }
+  }
+
   Future<void> _loadTokens() async {
     int tokens = await StorageService.loadTokens();
     setState(() {
@@ -67,6 +93,15 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
       _isPlaying = true;
     });
     
+    // Show visual confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Attempting to play audio...'),
+        duration: Duration(seconds: 2),
+        backgroundColor: Colors.blue,
+      ),
+    );
+    
     try {
       await _audioPlayer.stop();
       await Future.delayed(const Duration(milliseconds: 300)); // Android needs delay
@@ -74,7 +109,19 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
       String audioPath = _currentLevel == 1 
           ? 'audio/Knockrythm1.mp3' 
           : 'audio/Knockrythm2.mp3';
+      
       await _audioPlayer.play(AssetSource(audioPath));
+      
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Audio play command sent!'),
+            duration: Duration(seconds: 1),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
       
       _audioPlayer.onPlayerComplete.listen((_) {
         if (mounted) {
@@ -84,6 +131,16 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
         }
       });
     } catch (e) {
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            duration: const Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
       setState(() {
         _isPlaying = false;
       });
