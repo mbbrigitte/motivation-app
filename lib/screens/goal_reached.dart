@@ -5,7 +5,8 @@ import 'package:video_player/video_player.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 import 'dart:math';
-import 'practice_finished.dart';
+import '../services/storage_service.dart';
+import 'exit_screen.dart';
 
 class GoalReached extends StatefulWidget {
   const GoalReached({super.key});
@@ -22,6 +23,7 @@ class _GoalReachedState extends State<GoalReached> with TickerProviderStateMixin
   bool _isVideoInitialized = false;
   bool _isPlaying = false;
   bool _showConfetti = false;
+  bool _showRedeemSection = false;
   
   List<ConfettiParticle> _confettiParticles = [];
   late AnimationController _confettiController;
@@ -133,14 +135,13 @@ class _GoalReachedState extends State<GoalReached> with TickerProviderStateMixin
     // Start confetti
     _startConfetti();
 
-    // After 8 seconds of confetti, navigate away
-    await Future.delayed(const Duration(seconds: 10));
+    // After 15 seconds of confetti, show redeem section
+    await Future.delayed(const Duration(seconds: 15));
 
     if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const PracticeFinished()),
-      );
+      setState(() {
+        _showRedeemSection = true;
+      });
     }
   }
 
@@ -190,6 +191,58 @@ class _GoalReachedState extends State<GoalReached> with TickerProviderStateMixin
       Colors.cyan,
     ];
     return colors[random.nextInt(colors.length)];
+  }
+
+  Future<void> _showConfirmationDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Redemption'),
+        content: const Text(
+          'Confirm that my parent or caregiver knows I am redeeming the tokens.',
+          style: TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _redeemTokens();
+    }
+  }
+
+  Future<void> _redeemTokens() async {
+    // Load current values
+    final currentTokens = await StorageService.loadTokens();
+    final totalTokens = await StorageService.loadTotalTokens();
+    
+    // Remove 250 from both current and total tokens
+    final newCurrentTokens = (currentTokens - 250).clamp(0, currentTokens);
+    final newTotalTokens = (totalTokens - 250).clamp(0, totalTokens);
+    
+    await StorageService.saveTokens(newCurrentTokens);
+    await StorageService.saveTotalTokens(newTotalTokens);
+
+    // Navigate to exit screen
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ExitScreen()),
+      );
+    }
   }
 
   @override
@@ -256,8 +309,8 @@ class _GoalReachedState extends State<GoalReached> with TickerProviderStateMixin
               ),
             ),
 
-          // Celebration text during confetti
-          if (_showConfetti)
+          // Celebration text during confetti (before redeem section)
+          if (_showConfetti && !_showRedeemSection)
             Positioned(
               left: screenWidth * 0.1,
               right: screenWidth * 0.1,
@@ -287,6 +340,70 @@ class _GoalReachedState extends State<GoalReached> with TickerProviderStateMixin
                     color: Colors.red[900],
                   ),
                   textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+
+          // Redeem section
+          if (_showRedeemSection)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.7),
+                child: Center(
+                  child: Container(
+                    margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.1),
+                    padding: EdgeInsets.all(screenWidth * 0.05),
+                    decoration: BoxDecoration(
+                      color: Colors.yellow[600],
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.red[900]!, width: 4),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '🎉 You Have Reached 250 Tokens! 🎉',
+                          style: TextStyle(
+                            fontSize: (screenWidth * 0.06).clamp(20.0, 32.0),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red[900],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: screenHeight * 0.03),
+                        Text(
+                          'You can redeem them for the prize you discussed with your caregiver or parent. Please redeem the tokens now. You will then be able to start collecting tokens again.',
+                          style: TextStyle(
+                            fontSize: (screenWidth * 0.045).clamp(16.0, 24.0),
+                            color: Colors.black87,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: screenHeight * 0.04),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: screenWidth * 0.1,
+                              vertical: screenHeight * 0.02,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
+                          onPressed: _showConfirmationDialog,
+                          child: Text(
+                            'Redeem Now',
+                            style: TextStyle(
+                              fontSize: (screenWidth * 0.05).clamp(18.0, 28.0),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

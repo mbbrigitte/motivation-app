@@ -58,7 +58,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
 
   Future<void> _initializeAudioPlayer() async {
     try {
-      // Set release mode to prevent instant completion
       await _audioPlayer.setReleaseMode(ReleaseMode.stop);
       
       await _audioPlayer.setAudioContext(
@@ -93,35 +92,15 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
       _isPlaying = true;
     });
     
-    // Show visual confirmation
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Attempting to play audio...'),
-        duration: Duration(seconds: 2),
-        backgroundColor: Colors.blue,
-      ),
-    );
-    
     try {
       await _audioPlayer.stop();
-      await Future.delayed(const Duration(milliseconds: 300)); // Android needs delay
+      await Future.delayed(const Duration(milliseconds: 300));
       
       String audioPath = _currentLevel == 1 
           ? 'audio/knockrythm1.mp3' 
           : 'audio/knockrythm2.mp3';
       
       await _audioPlayer.play(AssetSource(audioPath));
-      
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Audio play command sent!'),
-            duration: Duration(seconds: 1),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
       
       _audioPlayer.onPlayerComplete.listen((_) {
         if (mounted) {
@@ -131,16 +110,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
         }
       });
     } catch (e) {
-      // Show error message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            duration: const Duration(seconds: 3),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
       setState(() {
         _isPlaying = false;
       });
@@ -355,7 +324,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
         _knockTimestamps.clear();
       });
     } else {
-      // Already on level 2, complete the challenge
       _onChallengeComplete();
     }
   }
@@ -481,7 +449,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    final isSmallScreen = screenWidth < 400;
 
     return Scaffold(
       backgroundColor: const Color(0xFFDAA520),
@@ -586,16 +553,6 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
-                                  SizedBox(height: screenHeight * 0.008),
-                                  Text(
-                                    'Knocks: ${_knockTimestamps.length}/${_expectedIntervals[_currentLevel]!.length + 1}',
-                                    style: TextStyle(
-                                      fontSize: screenWidth * 0.035,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
                                 ],
                               ),
                             ),
@@ -605,6 +562,31 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
                   ],
                 ),
               ),
+
+              // Knock counter below the door
+              if (_isRecording) ...[
+                SizedBox(height: screenHeight * 0.02),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: screenWidth * 0.04,
+                    vertical: screenHeight * 0.01,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red[900],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: Text(
+                    'Knocks: ${_knockTimestamps.length}/${_expectedIntervals[_currentLevel]!.length + 1}',
+                    style: TextStyle(
+                      fontSize: screenWidth * 0.045,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
 
               SizedBox(height: screenHeight * 0.03),
 
