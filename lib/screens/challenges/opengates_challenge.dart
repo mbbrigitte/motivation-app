@@ -107,8 +107,8 @@ class _OpenGatesChallengeState extends State<OpenGatesChallenge>
       await Future.delayed(const Duration(milliseconds: 300)); // Android needs delay
       
       String audioPath = _currentLevel == 1 
-          ? 'audio/Knockrythm1.mp3' 
-          : 'audio/Knockrythm2.mp3';
+          ? 'audio/knockrythm1.mp3' 
+          : 'audio/knockrythm2.mp3';
       
       await _audioPlayer.play(AssetSource(audioPath));
       
