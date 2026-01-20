@@ -550,35 +550,111 @@ class _ParentInfoState extends State<ParentInfo> {
     );
   }
 
-  Widget _contactSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.purple[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.purple[200]!, width: 2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "📧 Questions or Feedback?",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.purple[900],
+Widget _contactSection() {
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.purple[50],
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.purple[200]!, width: 2),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "📧 Contact & Resources",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.purple[900],
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // Email
+        Row(
+          children: [
+            Icon(Icons.email, size: 20, color: Colors.purple[700]),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                "violinadventure@proton.me",
+                style: TextStyle(fontSize: 14, color: Colors.purple[800]),
+              ),
             ),
+          ],
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Website
+        Row(
+          children: [
+            Icon(Icons.language, size: 20, color: Colors.purple[700]),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                "https://violinadventure.carrd.co/",
+                style: TextStyle(
+                  fontSize: 14, 
+                  color: Colors.purple[800],
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Notebook info
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.purple[100],
+            borderRadius: BorderRadius.circular(8),
           ),
-          const SizedBox(height: 8),
-          Text(
-            "We'd love to hear from you!\n"
-            "brigitte.mueller@yahoo.ca",
-            style: TextStyle(fontSize: 14, color: Colors.purple[800]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.book, size: 20, color: Colors.purple[900]),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Practice Notebooks Available",
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.purple[900],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Enhance your child's practice with our specially designed "
+                "practice notebooks! Visit our website to learn more and purchase.",
+                style: TextStyle(fontSize: 13, color: Colors.purple[800]),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+        
+        const SizedBox(height: 12),
+        
+        Text(
+          "Questions or feedback? We'd love to hear from you!",
+          style: TextStyle(
+            fontSize: 13, 
+            color: Colors.purple[700],
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   // ------------------------------
   // SMALL UI UTILITIES

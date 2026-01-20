@@ -260,14 +260,21 @@ SizedBox(
       ? ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: Transform.rotate(
-            angle: 45 * 3.1415926535 / 180, // +45 degrees
-            child: ClipRect(
-              child: Align(
-                alignment: Alignment.center,
-                widthFactor: 0.7, // keeps 70% → cuts ~15% left & right
-                child: AspectRatio(
-                  aspectRatio: _videoController!.value.aspectRatio,
-                  child: VideoPlayer(_videoController!),
+            angle: 45 * 3.1415926535 / 180,
+            child: Transform.scale(
+              scale: 1.03, // important for Android seam
+              child: ClipRect(
+                child: Align(
+                  alignment: Alignment.center,
+                  widthFactor: 0.7, // crop left & right
+                  child: FittedBox(
+                    fit: BoxFit.cover,
+                    child: SizedBox(
+                      width: _videoController!.value.size.width,
+                      height: _videoController!.value.size.height,
+                      child: VideoPlayer(_videoController!),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -281,6 +288,7 @@ SizedBox(
           ),
         ),
 ),
+
 
               SizedBox(height: h * 0.015),
 
