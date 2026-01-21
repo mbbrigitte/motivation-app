@@ -259,21 +259,18 @@ SizedBox(
   child: _videoInitialized
       ? ClipRRect(
           borderRadius: BorderRadius.circular(10),
-          child: Transform.rotate(
-            angle: 45 * 3.1415926535 / 180,
-            child: Transform.scale(
-              scale: 1.03, // important for Android seam
+          child: OverflowBox(
+            maxHeight: h * 0.19, // slightly larger to hide edges
+            child: Transform.rotate(
+              angle: 45 * 3.1415926535 / 180,
               child: ClipRect(
                 child: Align(
                   alignment: Alignment.center,
                   widthFactor: 0.7, // crop left & right
-                  child: FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: _videoController!.value.size.width,
-                      height: _videoController!.value.size.height,
-                      child: VideoPlayer(_videoController!),
-                    ),
+                  heightFactor: 0.95, // crop top & bottom slightly
+                  child: AspectRatio(
+                    aspectRatio: _videoController!.value.aspectRatio,
+                    child: VideoPlayer(_videoController!),
                   ),
                 ),
               ),
@@ -288,7 +285,6 @@ SizedBox(
           ),
         ),
 ),
-
 
               SizedBox(height: h * 0.015),
 

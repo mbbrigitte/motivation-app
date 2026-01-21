@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import '../services/storage_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 
 class ParentInfo extends StatefulWidget {
   const ParentInfo({super.key});
@@ -522,29 +524,6 @@ class _ParentInfoState extends State<ParentInfo> {
               ),
             ),
           ),
-
-          const SizedBox(height: 12),
-
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.yellow[100],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.yellow[700]!, width: 1),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.yellow[900], size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'This will also reset the knight\'s position on the map.',
-                    style: TextStyle(fontSize: 12, color: Colors.yellow[900]),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -572,37 +551,60 @@ Widget _contactSection() {
         const SizedBox(height: 12),
         
         // Email
-        Row(
-          children: [
-            Icon(Icons.email, size: 20, color: Colors.purple[700]),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                "violinadventure@proton.me",
-                style: TextStyle(fontSize: 14, color: Colors.purple[800]),
+        InkWell(
+          onTap: () async {
+            final Uri emailUri = Uri(
+              scheme: 'mailto',
+              path: 'violinadventure@proton.me',
+            );
+            if (await canLaunchUrl(emailUri)) {
+              await launchUrl(emailUri);
+            }
+          },
+          child: Row(
+            children: [
+              Icon(Icons.email, size: 20, color: Colors.purple[700]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "violinadventure@proton.me",
+                  style: TextStyle(
+                    fontSize: 14, 
+                    color: Colors.purple[800],
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         
         const SizedBox(height: 12),
         
         // Website
-        Row(
-          children: [
-            Icon(Icons.language, size: 20, color: Colors.purple[700]),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                "https://violinadventure.carrd.co/",
-                style: TextStyle(
-                  fontSize: 14, 
-                  color: Colors.purple[800],
-                  decoration: TextDecoration.underline,
+        InkWell(
+          onTap: () async {
+            final Uri url = Uri.parse('https://violinadventure.carrd.co/');
+            if (await canLaunchUrl(url)) {
+              await launchUrl(url, mode: LaunchMode.externalApplication);
+            }
+          },
+          child: Row(
+            children: [
+              Icon(Icons.language, size: 20, color: Colors.purple[700]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "https://violinadventure.carrd.co/",
+                  style: TextStyle(
+                    fontSize: 14, 
+                    color: Colors.purple[800],
+                    decoration: TextDecoration.underline,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         
         const SizedBox(height: 16),
