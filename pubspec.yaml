@@ -108,3 +108,6 @@ flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/icon/my_violin_icon.png"
+  adaptive_icon_background: "#FFFFFF"  # Or your preferred color
+  adaptive_icon_foreground: "assets/icon/my_violin_icon.png"
+  min_sdk_android: 21
