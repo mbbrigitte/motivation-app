@@ -2,9 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'violin_tuner.dart';
 import 'knights_practice_timer.dart';
+import '../services/storage_service.dart';
 
-class TuningQuestionScreen extends StatelessWidget {
+class TuningQuestionScreen extends StatefulWidget {
   const TuningQuestionScreen({super.key});
+
+  @override
+  State<TuningQuestionScreen> createState() => _TuningQuestionScreenState();
+}
+
+class _TuningQuestionScreenState extends State<TuningQuestionScreen> {
+  String selectedCharacter = 'knight';
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCharacter();
+  }
+
+  Future<void> _loadCharacter() async {
+    final character = await StorageService.loadSelectedCharacter();
+    if (mounted) {
+      setState(() {
+        selectedCharacter = character;
+        isLoading = false;
+      });
+    }
+  }
 
   Future<void> _requestMicrophoneAndNavigate(BuildContext context) async {
     // Check current permission status
@@ -170,6 +195,27 @@ class TuningQuestionScreen extends StatelessWidget {
     final double w = size.width;
     final double h = size.height;
 
+    if (isLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFDAA520),
+        appBar: AppBar(
+          title: const Text('Tuning Help'),
+          backgroundColor: Colors.red[900],
+          centerTitle: true,
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(
+            color: Color(0xFFB22222),
+          ),
+        ),
+      );
+    }
+
+    // Determine which image to show based on selected character
+    String imagePath = selectedCharacter == 'gerbil' 
+        ? 'assets/images/Gerbil_tuning.webp'
+        : 'assets/images/help_tuning.webp';
+
     return Scaffold(
       backgroundColor: const Color(0xFFDAA520),
       appBar: AppBar(
@@ -188,7 +234,7 @@ class TuningQuestionScreen extends StatelessWidget {
                 Container(
                   constraints: BoxConstraints.loose(Size(w * 0.7, h * 0.4)),
                   child: Image.asset(
-                    'assets/images/help_tuning.webp',
+                    imagePath,
                     fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) {
                       return Text(

@@ -29,6 +29,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
   bool isLoading = true;
   Map<String, dynamic> pathsData = {};
   bool showSpeechBubble = false;
+  String selectedCharacter = 'knight';
 
   // Animation
   late AnimationController _animationController;
@@ -118,6 +119,7 @@ class _KnightAdvancerState extends State<KnightAdvancer>
     // Load current progress
     points = await StorageService.loadPoints();
     lastHandledMilestone = await StorageService.loadLastHandledMilestone();
+    selectedCharacter = await StorageService.loadSelectedCharacter();
     
     int currentMilestone = (points ~/ 25) * 25;
     
@@ -439,7 +441,9 @@ class _KnightAdvancerState extends State<KnightAdvancer>
             left: knightX - (knightSize / 2),
             top: knightY - knightSize,
             child: Image.asset(
-              'assets/images/Knight.png',
+              selectedCharacter.toLowerCase() == 'gerbil'
+                  ? 'assets/images/Gerbil_advancer.png'
+                  : 'assets/images/Knight.png',
               width: knightSize,
               errorBuilder: (context, error, stackTrace) {
                 return Container(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'dart:math';
 import '../services/storage_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -16,6 +17,7 @@ class _ParentInfoState extends State<ParentInfo> {
   int currentTokens = 0;
   int totalPoints = 0;
   List<String> unlockedChallenges = [];
+  String selectedCharacter = 'knight';
   bool isLoading = true;
 
   @override
@@ -29,6 +31,7 @@ class _ParentInfoState extends State<ParentInfo> {
     final total = await StorageService.loadTotalTokens();
     final points = await StorageService.loadPoints();
     final challenges = await StorageService.getUnlockedChallenges();
+    final character = await StorageService.loadSelectedCharacter();
 
     if (!mounted) return;
     setState(() {
@@ -36,6 +39,7 @@ class _ParentInfoState extends State<ParentInfo> {
       totalTokens = total;
       totalPoints = points;
       unlockedChallenges = challenges;
+      selectedCharacter = character;
       isLoading = false;
     });
   }
@@ -276,6 +280,152 @@ class _ParentInfoState extends State<ParentInfo> {
     }
   }
 
+  Future<void> _showCharacterSelectionDialog() async {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    await showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: screenWidth * 0.9,
+          padding: EdgeInsets.all(screenWidth * 0.06),
+          decoration: BoxDecoration(
+            color: const Color(0xFFDAA520),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFB22222), width: 4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.5),
+                blurRadius: 15,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Title
+              Text(
+                'Choose your adventure companion!',
+                style: TextStyle(
+                  fontSize: screenWidth * 0.055,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFFB22222),
+                  height: 1.3,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
+              SizedBox(height: screenHeight * 0.04),
+              
+              // Character options
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Knight option
+                  _buildCharacterOption(
+                    character: 'knight',
+                    imagePath: 'assets/images/Knight_adventurer_forest.webp',
+                    label: 'Knight',
+                    screenWidth: screenWidth,
+                    screenHeight: screenHeight,
+                  ),
+                  
+                  // Gerbil option
+                  _buildCharacterOption(
+                    character: 'gerbil',
+                    imagePath: 'assets/images/Gerbil_adventurer_forest.webp',
+                    label: 'Gerbil',
+                    screenWidth: screenWidth,
+                    screenHeight: screenHeight,
+                  ),
+                ],
+              ),
+              
+              SizedBox(height: screenHeight * 0.03),
+              
+              // Close button
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFFB22222),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCharacterOption({
+    required String character,
+    required String imagePath,
+    required String label,
+    required double screenWidth,
+    required double screenHeight,
+  }) {
+    bool isSelected = selectedCharacter == character;
+    
+    return GestureDetector(
+      onTap: () async {
+        await StorageService.saveSelectedCharacter(character);
+        setState(() {
+          selectedCharacter = character;
+        });
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${character == 'knight' ? 'Knight' : 'Gerbil'} selected!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFB22222) : Colors.transparent,
+            width: 4,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: Image.asset(
+            imagePath,
+            height: screenHeight * 0.25,
+            width: screenWidth * 0.35,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                height: screenHeight * 0.25,
+                width: screenWidth * 0.35,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(
+                  Icons.image_not_supported,
+                  size: screenWidth * 0.1,
+                  color: Colors.grey[600],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -315,10 +465,6 @@ class _ParentInfoState extends State<ParentInfo> {
 
                   const SizedBox(height: 20),
 
-                  _rewardsCard(),
-
-                  const SizedBox(height: 20),
-
                   _sectionCard(
                     title: "🪙 How the System Works",
                     children: [
@@ -330,21 +476,14 @@ class _ParentInfoState extends State<ParentInfo> {
                       _bullet(
                         "Points are different: they accumulate forever through practice and ear training and unlock milestones.",
                       ),
+                      _bullet("Challenges unlock automatically with enough practice points."),
                       _bullet("Replay challenges as much as you like – replays are for learning and fun."),
                     ],
                   ),
 
                   const SizedBox(height: 20),
 
-                  _sectionCard(
-                    title: "🎮 Challenges",
-                    children: [
-                      _bullet("Challenges unlock automatically after practice sessions."),
-                      _bullet("They teach violin parts, note reading, listening skills, theory basics (major/minor), and more."),
-                      _bullet("The 'Ear Training & More' button appears after practicing."),
-                      _bullet("First completion awards tokens; replays do not."),
-                    ],
-                  ),
+                  _rewardsCard(),
 
                   const SizedBox(height: 20),
 
@@ -495,7 +634,7 @@ class _ParentInfoState extends State<ParentInfo> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "⚙️ Adjust Tokens & Points",
+            "⚙️ Change Avatar & Adjust Tokens",
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -505,11 +644,27 @@ class _ParentInfoState extends State<ParentInfo> {
           const SizedBox(height: 12),
 
           const Text(
-            "Made a mistake? You can remove tokens or points here.",
+            "Switch your child's adventure companion or adjust their tokens and points.",
             style: TextStyle(fontSize: 14),
           ),
 
           const SizedBox(height: 16),
+
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _showCharacterSelectionDialog,
+              icon: const Icon(Icons.pets),
+              label: const Text('Change Avatar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange[700],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
 
           SizedBox(
             width: double.infinity,
@@ -551,14 +706,20 @@ Widget _contactSection() {
         const SizedBox(height: 12),
         
         // Email
-        InkWell(
+        GestureDetector(
           onTap: () async {
             final Uri emailUri = Uri(
               scheme: 'mailto',
               path: 'violinadventure@proton.me',
             );
-            if (await canLaunchUrl(emailUri)) {
-              await launchUrl(emailUri);
+            try {
+              await launchUrl(emailUri, mode: LaunchMode.externalApplication);
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Could not open email app')),
+                );
+              }
             }
           },
           child: Row(
@@ -566,12 +727,30 @@ Widget _contactSection() {
               Icon(Icons.email, size: 20, color: Colors.purple[700]),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  "violinadventure@proton.me",
-                  style: TextStyle(
-                    fontSize: 14, 
-                    color: Colors.purple[800],
-                    decoration: TextDecoration.underline,
+                child: RichText(
+                  text: TextSpan(
+                    text: 'violinadventure@proton.me',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.purple[800],
+                      decoration: TextDecoration.underline,
+                    ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () async {
+                        final Uri emailUri = Uri(
+                          scheme: 'mailto',
+                          path: 'violinadventure@proton.me',
+                        );
+                        try {
+                          await launchUrl(emailUri, mode: LaunchMode.externalApplication);
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Could not open email app')),
+                            );
+                          }
+                        }
+                      },
                   ),
                 ),
               ),
@@ -582,11 +761,17 @@ Widget _contactSection() {
         const SizedBox(height: 12),
         
         // Website
-        InkWell(
+        GestureDetector(
           onTap: () async {
             final Uri url = Uri.parse('https://violinadventure.carrd.co/');
-            if (await canLaunchUrl(url)) {
+            try {
               await launchUrl(url, mode: LaunchMode.externalApplication);
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Could not open website')),
+                );
+              }
             }
           },
           child: Row(
@@ -594,12 +779,27 @@ Widget _contactSection() {
               Icon(Icons.language, size: 20, color: Colors.purple[700]),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  "https://violinadventure.carrd.co/",
-                  style: TextStyle(
-                    fontSize: 14, 
-                    color: Colors.purple[800],
-                    decoration: TextDecoration.underline,
+                child: RichText(
+                  text: TextSpan(
+                    text: 'violinadventure.carrd.co',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.purple[800],
+                      decoration: TextDecoration.underline,
+                    ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () async {
+                        final Uri url = Uri.parse('https://violinadventure.carrd.co/');
+                        try {
+                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Could not open website')),
+                            );
+                          }
+                        }
+                      },
                   ),
                 ),
               ),

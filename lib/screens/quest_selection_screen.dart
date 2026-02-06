@@ -122,7 +122,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Choose your quests',
+                          'Choose your practice goals',
                           textAlign: TextAlign.center,
                           softWrap: true,
                           style: const TextStyle(
@@ -158,7 +158,7 @@ class _QuestSelectionScreenState extends State<QuestSelectionScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _selectedQuests.contains(i)
                                   ? Colors.green
-                                  : Colors.purple.shade300,
+                                  : const Color.fromARGB(255, 233, 202, 25),
                               foregroundColor: Colors.black,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 20,

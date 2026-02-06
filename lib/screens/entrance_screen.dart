@@ -27,6 +27,10 @@ class _EntranceScreenState extends State<EntranceScreen> {
   bool _showTutorial = false;
   int _tutorialPage = 0;
   bool _isCheckingFirstTime = true;
+  
+  // Character selection state
+  bool _showCharacterSelection = false;
+  String _selectedCharacter = 'knight'; // default
 
   @override
   void initState() {
@@ -37,12 +41,20 @@ class _EntranceScreenState extends State<EntranceScreen> {
   }
 
   Future<void> _checkFirstTimeUser() async {
+    // Check if user has selected a character
+    bool hasCharacter = await StorageService.hasSelectedCharacter();
+    
     // Check if user has 0 tokens and 0 total tokens (first time)
     int tokens = await StorageService.loadTokens();
     int totalTokens = await StorageService.loadTotalTokens();
     
+    // Load selected character
+    String character = await StorageService.loadSelectedCharacter();
+    
     setState(() {
-      _showTutorial = (tokens == 0 && totalTokens == 0);
+      _showCharacterSelection = !hasCharacter;
+      _showTutorial = hasCharacter && (tokens == 0 && totalTokens == 0);
+      _selectedCharacter = character;
       _isCheckingFirstTime = false;
     });
   }
@@ -92,9 +104,13 @@ class _EntranceScreenState extends State<EntranceScreen> {
   }
 
   Future<void> _initializeVideo() async {
-    _videoController = VideoPlayerController.asset(
-      'assets/videos/Knight_just_talks.mp4',
-    );
+    // Load the character to determine which video to use
+    String character = await StorageService.loadSelectedCharacter();
+    String videoPath = character == 'gerbil' 
+        ? 'assets/videos/gerbilintro.mp4'
+        : 'assets/videos/Knight_just_talks.mp4';
+    
+    _videoController = VideoPlayerController.asset(videoPath);
 
     await _videoController.initialize();
     await _videoController.setLooping(false);
@@ -183,6 +199,20 @@ class _EntranceScreenState extends State<EntranceScreen> {
     setState(() {
       _showTutorial = false;
     });
+  }
+
+  Future<void> _confirmCharacterSelection(String character) async {
+    await StorageService.saveSelectedCharacter(character);
+    
+    setState(() {
+      _selectedCharacter = character;
+      _showCharacterSelection = false;
+      _showTutorial = true; // Show tutorial after character selection
+    });
+    
+    // Reinitialize video with the selected character
+    await _videoController.dispose();
+    await _initializeVideo();
   }
 
   Widget _buildTutorialContent() {
@@ -407,6 +437,124 @@ class _EntranceScreenState extends State<EntranceScreen> {
     );
   }
 
+  Widget _buildCharacterSelectionContent() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return Container(
+      color: Colors.black87,
+      child: Center(
+        child: Container(
+          width: screenWidth * 0.9,
+          padding: EdgeInsets.all(screenWidth * 0.06),
+          decoration: BoxDecoration(
+            color: const Color(0xFFDAA520),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFB22222), width: 4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.5),
+                blurRadius: 15,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Title
+              Text(
+                'Choose who will accompany you\non your violin adventure!',
+                style: TextStyle(
+                  fontSize: screenWidth * 0.055,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFFB22222),
+                  height: 1.3,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
+              SizedBox(height: screenHeight * 0.04),
+              
+              // Character options
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Knight option
+                  _buildCharacterOption(
+                    character: 'knight',
+                    imagePath: 'assets/images/Knight_adventurer_forest.webp',
+                    label: 'Knight',
+                    screenWidth: screenWidth,
+                    screenHeight: screenHeight,
+                  ),
+                  
+                  // Gerbil option
+                  _buildCharacterOption(
+                    character: 'gerbil',
+                    imagePath: 'assets/images/Gerbil_adventurer_forest.webp',
+                    label: 'Gerbil',
+                    screenWidth: screenWidth,
+                    screenHeight: screenHeight,
+                  ),
+                ],
+              ),
+              
+              SizedBox(height: screenHeight * 0.03),
+              
+              // Info text
+              Text(
+                'You can change this anytime\nin the Parent Info screen',
+                style: TextStyle(
+                  fontSize: screenWidth * 0.035,
+                  color: Colors.grey[700],
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCharacterOption({
+    required String character,
+    required String imagePath,
+    required String label,
+    required double screenWidth,
+    required double screenHeight,
+  }) {
+    return GestureDetector(
+      onTap: () => _confirmCharacterSelection(character),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: Image.asset(
+          imagePath,
+          height: screenHeight * 0.25,
+          width: screenWidth * 0.35,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              height: screenHeight * 0.25,
+              width: screenWidth * 0.35,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(
+                Icons.image_not_supported,
+                size: screenWidth * 0.1,
+                color: Colors.grey[600],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_isVideoInitialized || _isCheckingFirstTime) {
@@ -439,7 +587,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
           ),
           
           // Skip button
-          if (!_showTutorial)
+          if (!_showTutorial && !_showCharacterSelection)
             Positioned(
               top: 40,
               right: 20,
@@ -478,7 +626,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
             ),
           
           // Start button overlay
-          if (!_isPlaying && !_showTutorial)
+          if (!_isPlaying && !_showTutorial && !_showCharacterSelection)
             Container(
               color: Colors.black54,
               child: Center(
@@ -514,6 +662,10 @@ class _EntranceScreenState extends State<EntranceScreen> {
           // Tutorial overlay
           if (_showTutorial)
             _buildTutorialContent(),
+          
+          // Character selection overlay (shown before tutorial)
+          if (_showCharacterSelection)
+            _buildCharacterSelectionContent(),
         ],
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:video_player/video_player.dart';
 import '../widgets/sword_icon.dart';
+import '../services/storage_service.dart';
 import 'treasure_chest_page.dart';
 
 class KnightsPracticeTimer extends StatefulWidget {
@@ -22,10 +23,24 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
   bool _token2Full = false;
   bool _token3Full = false;
 
+  String selectedCharacter = 'knight';
+  bool isLoadingCharacter = true;
+
   @override
   void initState() {
     super.initState();
+    _loadCharacter();
     _initializeVideo();
+  }
+
+  Future<void> _loadCharacter() async {
+    final character = await StorageService.loadSelectedCharacter();
+    if (mounted) {
+      setState(() {
+        selectedCharacter = character;
+        isLoadingCharacter = false;
+      });
+    }
   }
 
   Future<void> _initializeVideo() async {
@@ -228,17 +243,20 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                 ),
               ),
 
-              // Title with swords
+              // Title with icons (sword for knight, raspberry for gerbil)
               Padding(
                 padding: EdgeInsets.only(top: h * 0.01, bottom: h * 0.02),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SwordIcon(size: w * 0.08),
+                    // Left icon
+                    selectedCharacter == 'gerbil'
+                        ? Text('🫐', style: TextStyle(fontSize: w * 0.08))
+                        : SwordIcon(size: w * 0.08),
                     SizedBox(width: w * 0.03),
                     Flexible(
                       child: Text(
-                        'Knight\'s Practice',
+                        'Practice Timer',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: w * 0.07,
@@ -248,7 +266,10 @@ class _KnightsPracticeTimerState extends State<KnightsPracticeTimer> {
                       ),
                     ),
                     SizedBox(width: w * 0.03),
-                    SwordIcon(size: w * 0.08),
+                    // Right icon
+                    selectedCharacter == 'gerbil'
+                        ? Text('🫐', style: TextStyle(fontSize: w * 0.08))
+                        : SwordIcon(size: w * 0.08),
                   ],
                 ),
               ),

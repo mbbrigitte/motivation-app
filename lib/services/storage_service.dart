@@ -8,6 +8,9 @@ class StorageService {
   static const String _lastMilestoneKey = 'last_handled_milestone';
   static const String _unlockedChallengesKey = 'unlocked_challenges';
 
+  // Character selection key
+  static const String _selectedCharacterKey = 'selected_character';
+
   // Knight animation keys
   static const String _animatedXKey = 'animated_x';
   static const String _animatedYKey = 'animated_y';
@@ -116,6 +119,28 @@ class StorageService {
   }
 
   // -----------------------------
+  // 🎭 CHARACTER SELECTION
+  // -----------------------------
+
+  /// Save selected character ('knight' or 'gerbil')
+  static Future<void> saveSelectedCharacter(String character) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_selectedCharacterKey, character);
+  }
+
+  /// Load selected character (defaults to 'knight' if not set)
+  static Future<String> loadSelectedCharacter() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_selectedCharacterKey) ?? 'knight';
+  }
+
+  /// Check if character has been selected (for first-time flow)
+  static Future<bool> hasSelectedCharacter() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey(_selectedCharacterKey);
+  }
+
+  // -----------------------------
   // 🧍‍♂️ KNIGHT POSITION + SIZE
   // -----------------------------
 
@@ -217,6 +242,7 @@ class StorageService {
     print('🔹 Points (lifetime): ${prefs.getInt(_pointsKey) ?? 0}');
     print('🔹 Last handled milestone: ${prefs.getInt(_lastMilestoneKey) ?? 0}');
     print('🔹 Unlocked challenges: ${await getUnlockedChallenges()}');
+    print('🔹 Selected character: ${prefs.getString(_selectedCharacterKey) ?? 'not set'}');
     print('🔹 Knight position: X=${prefs.getDouble(_animatedXKey)}, '
         'Y=${prefs.getDouble(_animatedYKey)}, '
         'Size=${prefs.getDouble(_animatedSizeKey)}');
