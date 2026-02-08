@@ -160,13 +160,22 @@ class _EntranceScreenState extends State<EntranceScreen> {
       await Future.delayed(const Duration(milliseconds: 300));
     }
 
-    await _violinPlayer.play(AssetSource('audio/intro1.mp3'));
-    await _violinPlayer.seek(const Duration(seconds: 2));
+    await _violinPlayer.play(AssetSource('audio/doverquartet13aminorschubert.mp3'));
     await _violinPlayer.setVolume(1.0);
 
+    // Start violin fade at 4 seconds
+    Timer(const Duration(seconds: 4), () {
+      _startViolinFade();
+    });
+
+    // Keep knight audio starting at 7 seconds
     _knightTimer = Timer(const Duration(seconds: 7), () async {
       await _knightPlayer.play(AssetSource('audio/Audio_knight.m4a'));
-      _startViolinFade();
+    });
+
+    // Stop violin music at 17.5 seconds (0.5 seconds before screen change)
+    Timer(const Duration(milliseconds: 17500), () async {
+      await _violinPlayer.stop();
     });
 
     _endTimer = Timer(const Duration(seconds: 18), () {
@@ -179,17 +188,16 @@ class _EntranceScreenState extends State<EntranceScreen> {
   }
 
   void _startViolinFade() {
-    const fadeSteps = 90;
+    const fadeSteps = 10;  // 10 steps × 100ms = 1 second
     const fadeDuration = Duration(milliseconds: 100);
     int currentStep = 0;
 
     _fadeTimer = Timer.periodic(fadeDuration, (timer) async {
       currentStep++;
-      double volume = 1.0 - (currentStep / fadeSteps);
-      if (volume <= 0) {
-        volume = 0;
+      double volume = 1.0 - (currentStep / fadeSteps) * 0.7; // Fade from 1.0 to 0.3 over 1 second
+      if (volume <= 0.3) {
+        volume = 0.3; // Stay at 30% volume
         timer.cancel();
-        await _violinPlayer.stop();
       }
       await _violinPlayer.setVolume(volume);
     });
@@ -238,7 +246,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
       {
         'icon': Icons.videogame_asset,
         'title': 'Unlock Fun Games',
-        'text': 'Reach milestones to unlock games that help with ear training and music theory!',
+        'text': 'Reach milestones to unlock games that help with ear training and music theory! You will need 25 points to unlock the first game!',
       },
       {
         'icon': Icons.card_giftcard,

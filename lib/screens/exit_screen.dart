@@ -13,7 +13,9 @@ class ExitScreen extends StatefulWidget {
 
 class _ExitScreenState extends State<ExitScreen> {
   late VideoPlayerController _videoController;
+  late AudioPlayer _audioPlayer;
   bool _isInitialized = false;
+  double _currentVolume = 1.0;
   String selectedCharacter = 'knight';
 
   @override
@@ -28,8 +30,34 @@ class _ExitScreenState extends State<ExitScreen> {
     
     // Determine which video to play based on character
     String videoPath = selectedCharacter.toLowerCase() == 'gerbil'
-        ? 'assets/videos/gerbil_dance.mp4'
+        ? 'assets/videos/Gerbil_dance.mp4'
         : 'assets/videos/Happy_dance.mp4';
+    
+    // Initialize and configure audio player for Android compatibility
+    _audioPlayer = AudioPlayer();
+    
+    try {
+      // CRITICAL: Use AudioFocus.none to NOT steal focus from video
+      await _audioPlayer.setAudioContext(
+        AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: [
+              AVAudioSessionOptions.mixWithOthers,
+            ],
+          ),
+          android: AudioContextAndroid(
+            isSpeakerphoneOn: false,
+            stayAwake: true,
+            contentType: AndroidContentType.music,
+            usageType: AndroidUsageType.media,
+            audioFocus: AndroidAudioFocus.none, // Don't steal focus from video!
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Error configuring audio player: $e');
+    }
     
     // Initialize video
     _videoController = VideoPlayerController.asset(videoPath);
@@ -38,12 +66,21 @@ class _ExitScreenState extends State<ExitScreen> {
     // Add listener to pause video 0.5 seconds before the end
     _videoController.addListener(_videoListener);
     
-    // Start video
+    // Start video first
     await _videoController.play();
+    
+    // CRITICAL: Add delay before starting audio to prevent Android media session conflict
+    await Future.delayed(const Duration(milliseconds: 300));
+    
+    // Start audio after video has established its audio session
+    await _audioPlayer.play(AssetSource('audio/ENo_5.mp3'));
     
     setState(() {
       _isInitialized = true;
     });
+
+    // Start listening for fade out timing
+    _startFadeOutTimer();
   }
 
   void _videoListener() {
@@ -59,6 +96,27 @@ class _ExitScreenState extends State<ExitScreen> {
         _videoController.value.isPlaying) {
       _videoController.pause();
     }
+  }
+
+  void _startFadeOutTimer() async {
+    // Wait 6 seconds before starting fade
+    await Future.delayed(const Duration(seconds: 6));
+    
+    // Fade out over 3 seconds (from 6s to 9s)
+    const fadeDuration = 3000; // milliseconds
+    const fadeSteps = 30; // number of steps for smooth fade
+    const stepDuration = fadeDuration ~/ fadeSteps;
+    
+    for (int i = 0; i < fadeSteps; i++) {
+      if (!mounted) break;
+      
+      _currentVolume = 1.0 - (i / fadeSteps);
+      await _audioPlayer.setVolume(_currentVolume);
+      await Future.delayed(Duration(milliseconds: stepDuration));
+    }
+    
+    // Stop audio at 9 seconds
+    await _audioPlayer.stop();
   }
 
   void _closeApp() {
@@ -141,6 +199,7 @@ class _ExitScreenState extends State<ExitScreen> {
   void dispose() {
     _videoController.removeListener(_videoListener);
     _videoController.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
