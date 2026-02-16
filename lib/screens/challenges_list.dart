@@ -69,8 +69,8 @@ class _ChallengesListState extends State<ChallengesList> {
     ),
     ChallengeItem(
       id: 'question_challenge',
-      title: 'Get the Box with the Question Mark',
-      description: 'Solve the mysteries',
+      title: 'Journey to the question box',
+      description: 'Learn about minor and major',
       icon: Icons.help_outline,
     ),
     ChallengeItem(

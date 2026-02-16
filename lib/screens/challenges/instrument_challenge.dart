@@ -151,7 +151,7 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
               ),
               const SizedBox(height: 20),
               const Text(
-                'Do you want an extra challenge?',
+                'I have another challenge for you',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -162,38 +162,23 @@ class _InstrumentChallengeState extends State<InstrumentChallenge> {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PracticeFinished()),
-                );
-              },
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.red[700],
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              ),
-              child: const Text(
-                'No',
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                setState(() {
-                  showLabelLearning = true;
-                  _buttonPressed = false;
-                });
-              },
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.green[900],
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              ),
-              child: const Text(
-                'Yes!',
-                style: TextStyle(color: Colors.white, fontSize: 16),
+            Center(
+              child: TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  setState(() {
+                    showLabelLearning = true;
+                    _buttonPressed = false;
+                  });
+                },
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.green[900],
+                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                ),
+                child: const Text(
+                  'Go',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],

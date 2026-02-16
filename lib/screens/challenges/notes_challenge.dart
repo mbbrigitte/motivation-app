@@ -29,7 +29,7 @@ class _BirdNoteGameState extends State<BirdNoteGame> with TickerProviderStateMix
   
   // Bird state
   double _birdX = 0.0;
-  double _birdY = 0.35; // 50-20% from top = 20-50% as fraction
+  double _birdY = 0.25; // Changed from 0.35 to 0.25 - stays higher (25% from top instead of 35%)
   bool _birdMovingRight = true;
   double _birdSpeed = 0.003;
   
@@ -177,9 +177,9 @@ class _BirdNoteGameState extends State<BirdNoteGame> with TickerProviderStateMix
         }
       }
       
-      // Randomly adjust Y position between 20% and 50%
+      // Randomly adjust Y position between 15% and 35% (changed from 20-50% to keep bird higher)
       if (_random.nextDouble() < 0.01) {
-        _birdY = 0.2 + _random.nextDouble() * 0.3;
+        _birdY = 0.18 + _random.nextDouble() * 0.2;
       }
     });
   }
@@ -187,8 +187,8 @@ class _BirdNoteGameState extends State<BirdNoteGame> with TickerProviderStateMix
   void _dropNote() {
     String randomNote;
     
-    // 40% chance to drop the correct note for current level
-    if (_random.nextDouble() < 0.4) {
+    // 55% chance to drop the correct note for current level (increased from 40%)
+    if (_random.nextDouble() < 0.55) {
       List<String> correctNotes = _levels[_currentLevel]['correctNotes'];
       randomNote = correctNotes[_random.nextInt(correctNotes.length)];
     } else {
@@ -212,7 +212,7 @@ class _BirdNoteGameState extends State<BirdNoteGame> with TickerProviderStateMix
     
     setState(() {
       for (var note in _fallingNotes) {
-        note.y += 0.005; // Fall speed
+        note.y += 0.0025; // Fall speed - reduced from 0.005 to 0.003 (40% slower)
         
         // Check if note reached bottom
         if (note.y >= 1.0) {
