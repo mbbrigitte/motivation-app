@@ -309,22 +309,7 @@ class _ViolinTunerState extends State<ViolinTuner>
             ),
 
             // ── Listening indicator ───────────────────────────────────────
-            if (!hasError && currentAmplitude < 0.005)
-              Padding(
-                padding: EdgeInsets.only(bottom: screenHeight * 0.02),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(),
-                    SizedBox(height: screenHeight * 0.01),
-                    const Text(
-                      'Ready to detect violin...',
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-          ],
+        ],
         ),
       ),
     );
