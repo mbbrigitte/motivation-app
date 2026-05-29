@@ -13,7 +13,8 @@ class ViolinTuner extends StatefulWidget {
 
 class _ViolinTunerState extends State<ViolinTuner>
     with TickerProviderStateMixin {
-  static const platform = MethodChannel('com.flutter_testapplication.tuner/audio');
+  static const platform =
+      MethodChannel('com.flutter_testapplication.tuner/audio');
 
   static const Map<String, double> violinStrings = {
     'G': 196.00,
@@ -35,6 +36,10 @@ class _ViolinTunerState extends State<ViolinTuner>
   Timer? pitchTimer;
   late AnimationController needleController;
 
+  // Dragon image is 832×540 px (landscape) — same aspect ratio logic as the
+  // reference screen so the crown anchor is pixel-accurate on every device.
+  static const double dragonAspectRatio = 832.0 / 540.0; // ≈ 1.541
+
   @override
   void initState() {
     super.initState();
@@ -55,7 +60,6 @@ class _ViolinTunerState extends State<ViolinTuner>
 
     try {
       await platform.invokeMethod('startListening');
-      print('✅ Native audio started successfully');
 
       pitchTimer = Timer.periodic(const Duration(milliseconds: 50), (_) async {
         if (!mounted) return;
@@ -165,161 +169,193 @@ class _ViolinTunerState extends State<ViolinTuner>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
       backgroundColor: const Color(0xFFDAA520),
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           '🎻 Violin Tuner 🎻',
-          style: TextStyle(fontSize: 26),
+          style: TextStyle(fontSize: screenWidth * 0.065),
         ),
         backgroundColor: const Color(0xFFB22222),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
-                if (hasError)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    color: Colors.red,
-                    child: const Text(
-                      'Audio system failed - Restart app',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                const SizedBox(height: 20),
-                Text(
-                  currentString.isNotEmpty
-                      ? 'String: $currentString'
-                      : 'Waiting...',
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFB22222),
-                    fontFamily: 'Georgia',
-                  ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Error banner ──────────────────────────────────────────────
+            if (hasError)
+              Container(
+                margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  currentPitch > 0
-                      ? '${currentPitch.toStringAsFixed(1)} Hz'
-                      : '-- Hz',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    color: Color(0xFF8B0000),
-                  ),
+                child: const Text(
+                  'Audio system failed – Restart app',
+                  style: TextStyle(color: Colors.white),
                 ),
-                const SizedBox(height: 40),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final double gaugeSize = constraints.maxWidth * 0.7;
-                    return SizedBox(
-                      width: gaugeSize,
-                      height: gaugeSize * 0.5,
-                      child: _buildNeedleGauge(gaugeSize),
-                    );
-                  },
+              ),
+
+            // ── String name label ─────────────────────────────────────────
+            Padding(
+              padding: EdgeInsets.only(
+                  top: screenHeight * 0.02, bottom: screenHeight * 0.005),
+              child: Text(
+                currentString.isNotEmpty
+                    ? 'String: $currentString'
+                    : 'Waiting...',
+                style: TextStyle(
+                  fontSize: screenWidth * 0.08,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFFB22222),
+                  fontFamily: 'Georgia',
                 ),
-                const SizedBox(height: 20),// 🎯 Reduced from 50 to 20
-                _buildDragonIndicator(),
-                const SizedBox(height: 40),
-                // 🎯 FIX #1: Made "In tune!" always take up space, just invisible when not in tune
-                SizedBox(
-                  height: 36, // Fixed height to prevent layout shift
-                  child: Opacity(
-                    opacity: isInTune ? 1.0 : 0.0,
-                    child: const Text(
-                      'In tune!',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF228B22),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 30),
-                // Continue to Practice button (no longer moves)
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const KnightsPracticeTimer(),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF228B22),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 20, horizontal: 40),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(50),
-                      side: const BorderSide(
-                          color: Color.fromARGB(99, 168, 158, 145),
-                          width: 3),
-                    ),
-                    elevation: 6,
-                  ),
-                  child: const Text(
-                    'Continue to Practice →',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                // 🎯 FIX #2: Moved "Ready to detect violin" below the button
-                const SizedBox(height: 20),
-                if (!hasError && currentAmplitude < 0.005)
-                  const Column(
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 10),
-                      Text(
-                        'Ready to detect violin...',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    ],
-                  ),
-              ],
+              ),
             ),
-          ),
+
+            // ── Hz readout ────────────────────────────────────────────────
+            Text(
+              currentPitch > 0
+                  ? '${currentPitch.toStringAsFixed(1)} Hz'
+                  : '-- Hz',
+              style: TextStyle(
+                fontSize: screenWidth * 0.045,
+                color: const Color(0xFF8B0000),
+              ),
+            ),
+
+            // ── Needle gauge ──────────────────────────────────────────────
+            Padding(
+              padding: EdgeInsets.only(
+                top: screenHeight * 0.025,
+                bottom: screenHeight * 0.01,
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Cap at 70% of available width so it doesn't balloon on
+                  // wide screens (same proportion as the original code).
+                  final double gaugeSize =
+                      (constraints.maxWidth * 0.70).clamp(0.0, 400.0);
+                  return SizedBox(
+                    width: gaugeSize,
+                    height: gaugeSize * 0.5,
+                    child: _buildNeedleGauge(gaugeSize),
+                  );
+                },
+              ),
+            ),
+
+            // ── Dragon indicator ──────────────────────────────────────────
+            Expanded(
+              child: _buildDragonIndicator(),
+            ),
+
+            // ── "In tune!" message ────────────────────────────────────────
+            SizedBox(
+              height: screenHeight * 0.07,
+              child: Center(
+                child: AnimatedOpacity(
+                  opacity: isInTune ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: Text(
+                    'In tune!',
+                    style: TextStyle(
+                      fontSize: screenWidth * 0.07,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF228B22),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Continue to Practice button ───────────────────────────────
+            Padding(
+              padding: EdgeInsets.only(bottom: screenHeight * 0.025),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const KnightsPracticeTimer(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF228B22),
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(
+                    vertical: screenHeight * 0.02,
+                    horizontal: screenWidth * 0.1,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                    side: const BorderSide(
+                        color: Color.fromARGB(99, 168, 158, 145), width: 3),
+                  ),
+                  elevation: 6,
+                ),
+                child: Text(
+                  'Continue to Practice →',
+                  style: TextStyle(
+                      fontSize: screenWidth * 0.055,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+
+            // ── Listening indicator ───────────────────────────────────────
+            if (!hasError && currentAmplitude < 0.005)
+              Padding(
+                padding: EdgeInsets.only(bottom: screenHeight * 0.02),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(),
+                    SizedBox(height: screenHeight * 0.01),
+                    const Text(
+                      'Ready to detect violin...',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
 
-  // == YOUR ORIGINAL VISUAL COMPONENTS BELOW - UNMODIFIED ==
+  // ── Needle gauge ────────────────────────────────────────────────────────────
+  Widget _buildNeedleGauge(double size) {
+    final double centerPinSize = size * 0.07;
+    final double needleThickness = size * 0.018;
 
-  // NEEDLE GAUGE (RESPONSIVE)
- Widget _buildNeedleGauge(double size) {
-  final double centerPinSize = size * 0.07;
-  final double needleThickness = size * 0.018;
-
-  return ClipPath(
-    clipper: HalfCircleClipper(), // 🎯 Custom clipper to show only top half
-    child: Stack(
-      alignment: Alignment.center,
-      children: [
-        Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFD580),
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFF8B4513), width: size * 0.018),
+    return ClipPath(
+      clipper: HalfCircleClipper(),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD580),
+              shape: BoxShape.circle,
+              border: Border.all(
+                  color: const Color(0xFF8B4513), width: size * 0.018),
+            ),
+            child: CustomPaint(
+              painter: GaugePainter(),
+            ),
           ),
-          child: CustomPaint(
-            painter: GaugePainter(),
-          ),
-        ),
 
-        // Center reference line (amber)
-        Transform.rotate(
-          angle: 0,
-          child: Container(
+          // Center reference line (green = in-tune target)
+          Container(
             width: needleThickness,
             height: size * 0.45,
             decoration: BoxDecoration(
@@ -327,89 +363,116 @@ class _ViolinTunerState extends State<ViolinTuner>
               borderRadius: BorderRadius.circular(1),
             ),
           ),
-        ),
 
-        // Rotating needle
-        AnimatedBuilder(
-          animation: needleController,
-          builder: (context, child) {
-            return Transform.rotate(
-              angle: (needleController.value - 0.5) * pi,
-              child: Container(
-                width: needleThickness * 1.93,
-                height: size * 0.45,
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(2),
+          // Rotating needle
+          AnimatedBuilder(
+            animation: needleController,
+            builder: (context, child) {
+              return Transform.rotate(
+                angle: (needleController.value - 0.5) * pi,
+                child: Container(
+                  width: needleThickness * 1.93,
+                  height: size * 0.45,
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
-
-        // Center pin
-        Container(
-          width: centerPinSize,
-          height: centerPinSize,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFF8B4513), width: centerPinSize * 0.2),
+              );
+            },
           ),
-        ),
-      ],
-    ),
-  );
-}
-  
-  // DRAGON INDICATOR
-  Widget _buildDragonIndicator() {
-    double normalized = (detuneAmount + 50) / 100;
-    // 🎯 FIX #3: Increased crown drop from 10 to 25 when in tune
-    double verticalDrop = isInTune ? 25 : 0;
 
+          // Center pin
+          Container(
+            width: centerPinSize,
+            height: centerPinSize,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(
+                  color: const Color(0xFF8B4513), width: centerPinSize * 0.2),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Dragon indicator ─────────────────────────────────────────────────────────
+  Widget _buildDragonIndicator() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double maxWidth = constraints.maxWidth;
-        final double dragonHeight = maxWidth * 0.5;
-        final double crownSize = maxWidth * 0.15;
-        final double crownX = 20 + normalized * (maxWidth - 40 - crownSize);
+        final double availableWidth = constraints.maxWidth;
+        final double availableHeight = constraints.maxHeight;
 
-        return Column(
-          mainAxisSize: MainAxisSize.min,
+        // Dragon image is landscape (832×540). Under BoxFit.fill the rendered
+        // size equals the Positioned widget's size, so we compute it the same
+        // way the reference does: constrain by width first.
+        final double renderedWidth = availableWidth;
+        final double renderedHeight = availableWidth / dragonAspectRatio;
+
+        // Dragon sits at the bottom of the Expanded area.
+        const double dragonLeft = 0.0;
+        final double dragonTop =
+            availableHeight - renderedHeight + renderedHeight * 0.1;
+
+        // Crown anchored above the dragon's head.
+        // dragonHeadFraction: how far from the TOP of the image the head sits.
+        // The dragon's head is roughly 45% down the image.
+        const double dragonHeadFraction = 0.25;
+        final double headY = dragonTop + renderedHeight * dragonHeadFraction;
+
+        // Crown sized relative to rendered height — keep it modest.
+        final double crownSize = renderedHeight * 0.30;
+        final double travelWidth = availableWidth - crownSize;
+        final double normalized = (detuneAmount + 50) / 100;
+        final double crownX = normalized * travelWidth;
+
+        // Crown sits higher — full crownSize above head, plus an extra nudge up.
+        final double verticalDrop = isInTune ? renderedHeight * 0.04 : 0.0;
+        final double crownTop = headY - crownSize - renderedHeight * 0.05 + verticalDrop;
+
+        return Stack(
+          clipBehavior: Clip.none,
           children: [
-            SizedBox(
-              width: maxWidth,
-              height: dragonHeight,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned.fill(
-                    child: ClipRect(
-                      child: Align(
-                        alignment: Alignment.center,
-                        heightFactor: 0.55,
-                        child: Image.asset(
-                          "assets/images/Gemini_dragon_tuned.webp",
-                          width: maxWidth,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
+            // Dragon drawn first (bottom of stack), cropped 15% top + bottom
+            Positioned(
+              left: dragonLeft,
+              top: dragonTop,
+              width: renderedWidth,
+              height: renderedHeight,
+              child: ClipRect(
+                child: Align(
+                  alignment: Alignment.center,
+                  heightFactor: 0.70, // show middle 70% = crop 15% each side
+                  child: Image.asset(
+                    'assets/images/Gemini_dragon_tuned.webp',
+                    width: renderedWidth,
+                    fit: BoxFit.fitWidth,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Icon(Icons.pets, size: 100, color: Colors.white),
+                      );
+                    },
                   ),
+                ),
+              ),
+            ),
 
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 150),
-                    curve: Curves.easeOut,
-                    top: verticalDrop - 50,
-                    left: crownX,
-                    child: Image.asset(
-                      "assets/images/crown_transparent.png",
-                      width: crownSize,
-                      height: crownSize,
-                    ),
-                  ),
-                ],
+            // Crown drawn on top of the dragon
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.easeOut,
+              top: crownTop,
+              left: crownX,
+              child: Image.asset(
+                'assets/images/crown_transparent.png',
+                width: crownSize,
+                height: crownSize,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(Icons.star, size: crownSize, color: Colors.yellow);
+                },
               ),
             ),
           ],
@@ -417,9 +480,9 @@ class _ViolinTunerState extends State<ViolinTuner>
       },
     );
   }
-
-  // GAUGE PAINTER CLASS - COMPLETELY UNCHANGED
 }
+
+// ── Supporting painters / clippers ───────────────────────────────────────────
 
 class GaugePainter extends CustomPainter {
   @override
@@ -431,15 +494,6 @@ class GaugePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - (size.width * 0.05);
 
-  //  paint.color = Colors.blue;
-   // canvas.drawArc(
-  //    Rect.fromCircle(center: center, radius: radius),
-  //    pi,
-  //    pi / 3,
-  //    false,
-  //    paint,
-  //  );
-
     paint.color = Colors.green;
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
@@ -448,15 +502,6 @@ class GaugePainter extends CustomPainter {
       false,
       paint,
     );
-
-   // paint.color = Colors.red;
-   // canvas.drawArc(
-   //   Rect.fromCircle(center: center, radius: radius),
-   //   pi + 2 * pi / 3,
-   //   pi / 3,
-   //   false,
-   //   paint,
-   // );
 
     final linePaint = Paint()
       ..color = Colors.amber
@@ -475,14 +520,16 @@ class GaugePainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )
       ..layout()
-      ..paint(canvas, Offset(center.dx - (size.width * 0.4), center.dy - (size.height * 0.3)));
+      ..paint(canvas,
+          Offset(center.dx - (size.width * 0.4), center.dy - (size.height * 0.3)));
 
     TextPainter(
       text: TextSpan(text: 'HIGH', style: textStyle),
       textDirection: TextDirection.ltr,
     )
       ..layout()
-      ..paint(canvas, Offset(center.dx + (size.width * 0.27), center.dy - (size.height * 0.3)));
+      ..paint(canvas,
+          Offset(center.dx + (size.width * 0.27), center.dy - (size.height * 0.3)));
   }
 
   @override
@@ -493,7 +540,6 @@ class HalfCircleClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
-    // Create a rectangle that covers only the top half
     path.addRect(Rect.fromLTWH(0, 0, size.width, size.height / 2));
     return path;
   }
