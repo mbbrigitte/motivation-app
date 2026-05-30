@@ -30,7 +30,7 @@ class _ExitScreenState extends State<ExitScreen> {
     
     // Determine which video to play based on character
     String videoPath = selectedCharacter.toLowerCase() == 'gerbil'
-        ? 'assets/videos/Gerbil_dance.mp4'
+        ? 'assets/videos/Gerbil_dance1.mp4'
         : 'assets/videos/Happy_dance.mp4';
     
     // Initialize and configure audio player for Android compatibility
