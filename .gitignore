@@ -14,6 +14,8 @@ android/.idea/
 android/gradle/
 android/gradlew
 android/gradlew.bat
+android/key.properties
+android/upload-keystore.jks
 
 # iOS (skip if only Android)
 ios/
