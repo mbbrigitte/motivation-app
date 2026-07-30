@@ -160,7 +160,7 @@ class _EntranceScreenState extends State<EntranceScreen> {
       await Future.delayed(const Duration(milliseconds: 300));
     }
 
-    await _violinPlayer.play(AssetSource('audio/doverquartet13aminorschubert.mp3'));
+    await _violinPlayer.play(AssetSource('audio/Intro_Musopen_SchubertAndante.mp3'));
     await _violinPlayer.setVolume(1.0);
 
     // Start violin fade at 4 seconds
