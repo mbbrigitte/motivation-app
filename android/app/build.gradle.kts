@@ -15,7 +15,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.flutter_testapplication"
+    namespace = "com.violinadventure.vma"
 
     compileSdk = flutter.compileSdkVersion
 
@@ -42,7 +42,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.flutter_testapplication"
+        applicationId = "com.violinadventure.vma"
 
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
