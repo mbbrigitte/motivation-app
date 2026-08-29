@@ -5,7 +5,7 @@ A Flutter app designed to motivate young violinists to practice.
 Violin Motivation Adventure combines a practice-tracking experience, interactive challenges, and live pitch detection to help users improve intonation and consistency — turning practice sessions into a rewarding, game-like journey.
 
 <!-- Optional: add a screenshot or short demo GIF here, e.g. -->
-![App screenshot](assets/screenshot.png)
+<img src="assets/screenshot.png" alt="App screenshot" width="400" />
 
 ---
 
@@ -23,16 +23,16 @@ Violin Motivation Adventure combines a practice-tracking experience, interactive
 ## Features
 
 ### 1. Live audio-based tuning feedback
-The app listens to the microphone and analyzes pitch in real time, giving immediate feedback during tuning and practice sessions.
+The app listens to the microphone and analyzes pitch in real time, giving immediate feedback during tuning.
 
 ### 2. Quest-based learning flow
-Users progress through practice goals and challenge screens instead of seeing the app as a static tuner. This keeps learners engaged and encourages repeated use.
+Users progress through practice goals and challenge screens. This keeps learners engaged and encourages repeated use.
 
 ### 3. Reward and progression model
 The app includes a rewards-style system with tokens, quests, and accomplishment screens to reinforce motivation and habit-building.
 
 ### 4. Beginner-focused experience
-The UI is designed to be approachable and learner-friendly, especially for young musicians or people new to violin study.
+The UI is designed to be approachable and learner-friendly, especially for young musicians.
 
 ### 5. Modular screen architecture
 The project is organized into reusable screen components and supporting widgets for scalable product development.
