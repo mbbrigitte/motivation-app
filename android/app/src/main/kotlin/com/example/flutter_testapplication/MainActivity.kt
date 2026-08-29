@@ -1,4 +1,4 @@
-package com.example.flutter_testapplication
+package com.violinadventure.vma
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -7,7 +7,7 @@ import androidx.core.app.ActivityCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import com.example.flutter_testapplication.audio.AudioProcessor
+import com.violinadventure.vma.audio.AudioProcessor
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.flutter_testapplication.tuner/audio"

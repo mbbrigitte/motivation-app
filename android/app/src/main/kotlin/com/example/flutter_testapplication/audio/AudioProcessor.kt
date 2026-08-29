@@ -1,4 +1,4 @@
-package com.example.flutter_testapplication.audio
+package com.violinadventure.vma.audio
 
 import android.media.AudioFormat
 import android.media.AudioRecord
