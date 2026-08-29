@@ -11,7 +11,7 @@ Violin Motivation Adventure combines a practice-tracking experience, interactive
 
 ## Project highlights
 
-- Real-time microphone-based pitch detection for violin tuning and feedback
+- Real-time microphone-based pitch detection for violin tuning
 - Gamified challenge system with rewards, progression, and goal selection
 - Practice flow designed to reduce friction for beginner musicians
 - Interactive UI built for mobile learning and engagement
@@ -104,12 +104,15 @@ The app includes:
 
 ## Development goals
 
-This project was created to explore:
+During this project I learned:
 
 - How to combine music learning with game mechanics
 - How to build real-time audio feedback in mobile apps
 - How to create a beginner-friendly, motivating practice experience
 - How to prototype a mobile learning product using Flutter
+- How to use Github Actions
+- How to put Apps on Google Play
+- etc etc
 
 ---
 
